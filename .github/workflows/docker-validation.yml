@@ -1,0 +1,23 @@
+name: Docker Compose Validation
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Validate Docker Compose Syntaxes
+        run: |
+          echo "[PASS] Validating Docker Compose configurations..."
+          for file in seed-web-security-docker/labs/*/docker-compose.yml; do
+            echo "Checking $file..."
+            docker compose -f "$file" config > /dev/null
+          done
+          echo "[PASS] All docker-compose.yml files validated."

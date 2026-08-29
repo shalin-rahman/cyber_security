@@ -1,7 +1,9 @@
 # Lab 02 — Cross-Site Scripting (XSS) Attack Lab
 
 Official lab manual: https://seedsecuritylabs.org/Labs_20.04/Web/Web_XSS_Elgg/
-Textbook: Chapter 11 — Cross-Site Scripting Attack (*Computer & Internet Security*, Prof. Wenliang Du)
+Textbook: Chapter 11 — Cross-Site Scripting Attack (*Computer & Internet Security*, 2nd Ed., Prof. Wenliang Du)
+Lecture Sync Sitemap: [SEED Lecture & Reference Sitemap](../../docs/lectures-and-references.md#3-lab-02--cross-site-scripting-xss)
+CWE Reference: [CWE-79: Improper Neutralization of Input During Web Page Generation](https://cwe.mitre.org/data/definitions/79.html)
 
 For authorized educational use only.
 

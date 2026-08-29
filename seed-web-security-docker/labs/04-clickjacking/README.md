@@ -1,7 +1,9 @@
 # Lab 04 — Clickjacking Attack Lab
 
 Official lab manual: https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/
-Textbook: Chapter 13 — Clickjacking Attack (*Computer & Internet Security*, Prof. Wenliang Du)
+Textbook: Chapter 13 — Clickjacking Attack (*Computer & Internet Security*, 2nd Ed., Prof. Wenliang Du)
+Lecture Sync Sitemap: [SEED Lecture & Reference Sitemap](../../docs/lectures-and-references.md#5-lab-04--clickjacking-ui-redress)
+CWE Reference: [CWE-1021: Improper Restriction of Rendered UI Layers or Frames](https://cwe.mitre.org/data/definitions/1021.html)
 
 For authorized educational use only.
 

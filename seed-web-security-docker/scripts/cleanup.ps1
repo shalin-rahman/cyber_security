@@ -8,17 +8,17 @@ param([switch]$All)
 $ErrorActionPreference = "Continue"
 
 Write-Host ""
-Write-Host "╔══════════════════════════════════════════════════════════╗" -ForegroundColor White
-Write-Host "║         SEED Web Security Docker — Cleanup               ║" -ForegroundColor White
-Write-Host "╚══════════════════════════════════════════════════════════╝" -ForegroundColor White
+Write-Host '==========================================================' -ForegroundColor White
+Write-Host '         SEED Web Security Docker — Cleanup               ' -ForegroundColor White
+Write-Host '==========================================================' -ForegroundColor White
 Write-Host ""
 
 $ScriptDir = $PSScriptRoot
 $LabsDir   = Join-Path $ScriptDir "..\labs"
 $Labs      = @("01-sql-injection","02-xss","03-csrf","04-clickjacking","05-shellshock")
 
-# ── Step 1: Stop all lab containers ──────────────────────────────────────────
-Write-Host "Step 1: Stopping all lab containers..." -ForegroundColor Yellow
+# -- Step 1: Stop all lab containers ------------------------------------------
+Write-Host 'Step 1: Stopping all lab containers...' -ForegroundColor Yellow
 foreach ($lab in $Labs) {
     $composeFile = Join-Path $LabsDir "$lab\docker-compose.yml"
     if (Test-Path $composeFile) {
@@ -31,44 +31,44 @@ foreach ($lab in $Labs) {
 }
 Write-Host ""
 
-# ── Step 2: Remove SEED networks ─────────────────────────────────────────────
-Write-Host "Step 2: Removing SEED lab networks..." -ForegroundColor Yellow
+# -- Step 2: Remove SEED networks ---------------------------------------------
+Write-Host 'Step 2: Removing SEED lab networks...' -ForegroundColor Yellow
 $seedNetworks = docker network ls --filter "name=net-10.9.0.0" -q 2>&1
 if ($seedNetworks) {
     $seedNetworks | ForEach-Object { docker network rm $_ 2>&1 | Out-Null }
-    Write-Host "  [done] SEED networks removed" -ForegroundColor Green
+    Write-Host '  [done] SEED networks removed' -ForegroundColor Green
 } else {
-    Write-Host "  No SEED networks found" -ForegroundColor Gray
+    Write-Host '  No SEED networks found' -ForegroundColor Gray
 }
 Write-Host ""
 
-# ── Step 3 (optional): Remove images ─────────────────────────────────────────
+# -- Step 3 (optional): Remove images -----------------------------------------
 if ($All) {
-    Write-Host "Step 3: Removing SEED Docker images..." -ForegroundColor Red
-    Write-Host "  WARNING: This will require re-downloading images (~5-10 GB) next time." -ForegroundColor Red
-    $confirm = Read-Host "  Continue? [y/N]"
+    Write-Host 'Step 3: Removing SEED Docker images...' -ForegroundColor Red
+    Write-Host '  WARNING: This will require re-downloading images (~5-10 GB) next time.' -ForegroundColor Red
+    $confirm = Read-Host '  Continue? [y/N]'
     if ($confirm -ieq "y") {
         $seedImages = docker image ls --filter "reference=handsonsecurity/*" -q 2>&1
         if ($seedImages) {
             $seedImages | ForEach-Object { docker image rm $_ 2>&1 | Out-Null }
-            Write-Host "  [done] SEED images removed" -ForegroundColor Green
+            Write-Host '  [done] SEED images removed' -ForegroundColor Green
         } else {
-            Write-Host "  No SEED images found" -ForegroundColor Gray
+            Write-Host '  No SEED images found' -ForegroundColor Gray
         }
-        Write-Host "  Removing build cache..." -ForegroundColor Yellow
+        Write-Host '  Removing build cache...' -ForegroundColor Yellow
         docker builder prune -f 2>&1 | Out-Null
-        Write-Host "  [done] Build cache cleared" -ForegroundColor Green
+        Write-Host '  [done] Build cache cleared' -ForegroundColor Green
     } else {
-        Write-Host "  Skipped image removal." -ForegroundColor Gray
+        Write-Host '  Skipped image removal.' -ForegroundColor Gray
     }
     Write-Host ""
 }
 
-# ── Summary ───────────────────────────────────────────────────────────────────
-Write-Host "── Cleanup complete ─────────────────────────────────────────" -ForegroundColor White
-Write-Host "  Current Docker disk usage:" -ForegroundColor Gray
+# -- Summary -------------------------------------------------------------------
+Write-Host '-- Cleanup complete -----------------------------------------' -ForegroundColor White
+Write-Host '  Current Docker disk usage:' -ForegroundColor Gray
 docker system df 2>&1
 Write-Host ""
-Write-Host "  To remove images as well: .\scripts\cleanup.ps1 -All" -ForegroundColor Yellow
-Write-Host "  To start a fresh lab:     cd labs\<lab>; docker compose up -d" -ForegroundColor Green
+Write-Host '  To remove images as well: .\scripts\cleanup.ps1 -All' -ForegroundColor Yellow
+Write-Host '  To start a fresh lab:     cd labs\01-sql-injection; docker compose up -d' -ForegroundColor Green
 Write-Host ""

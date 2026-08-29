@@ -1,7 +1,9 @@
 # Lab 03 — Cross-Site Request Forgery (CSRF) Attack Lab
 
 Official lab manual: https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/
-Textbook: Chapter 10 — Cross-Site Request Forgery (*Computer & Internet Security*, Prof. Wenliang Du)
+Textbook: Chapter 10 — Cross-Site Request Forgery (*Computer & Internet Security*, 2nd Ed., Prof. Wenliang Du)
+Lecture Sync Sitemap: [SEED Lecture & Reference Sitemap](../../docs/lectures-and-references.md#4-lab-03--cross-site-request-forgery-csrf)
+CWE Reference: [CWE-352: Cross-Site Request Forgery (CSRF)](https://cwe.mitre.org/data/definitions/352.html)
 
 For authorized educational use only.
 

@@ -1,8 +1,9 @@
 # Lab 05 — Shellshock Vulnerability Lab
 
 Official lab manual: https://seedsecuritylabs.org/Labs_20.04/Web/Shellshock/
-Textbook: Chapter 3 — Shellshock Attack (*Computer & Internet Security*, Prof. Wenliang Du)
-CVE Reference: CVE-2014-6271, CVE-2014-7169
+Textbook: Chapter 3 — Shellshock Attack (*Computer & Internet Security*, 2nd Ed., Prof. Wenliang Du)
+Lecture Sync Sitemap: [SEED Lecture & Reference Sitemap](../../docs/lectures-and-references.md#6-lab-05--shellshock-vulnerability)
+CVE References: [CVE-2014-6271](https://nvd.nist.gov/vuln/detail/CVE-2014-6271), [CVE-2014-7169](https://nvd.nist.gov/vuln/detail/CVE-2014-7169)
 
 For authorized educational use only.
 

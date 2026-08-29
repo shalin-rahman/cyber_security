@@ -15,12 +15,12 @@ $Warnings = 0
 function Write-Pass  { param($msg) Write-Host "$PASS $msg" -ForegroundColor Green  }
 function Write-Warn  { param($msg) Write-Host "$WARN $msg" -ForegroundColor Yellow; $script:Warnings++ }
 function Write-Fail  { param($msg) Write-Host "$FAIL $msg" -ForegroundColor Red;    $script:Errors++   }
-function Write-Section { param($title) Write-Host "`n── $title " -ForegroundColor Cyan }
+function Write-Section { param($title) Write-Host "`n-- $title ----------------------------------------" -ForegroundColor Cyan }
 
 Write-Host ""
-Write-Host "╔══════════════════════════════════════════════════════════╗" -ForegroundColor White
-Write-Host "║     SEED Web Security Docker — Environment Check         ║" -ForegroundColor White
-Write-Host "╚══════════════════════════════════════════════════════════╝" -ForegroundColor White
+Write-Host "==========================================================" -ForegroundColor White
+Write-Host "     SEED Web Security Docker -- Environment Check        " -ForegroundColor White
+Write-Host "==========================================================" -ForegroundColor White
 Write-Host ""
 
 # ── 1. Operating System ───────────────────────────────────────────────────────
@@ -182,8 +182,8 @@ if ($wslCmd) {
     Write-Host "         Run in elevated PowerShell: wsl --install" -ForegroundColor Gray
 }
 
-# ── Summary ───────────────────────────────────────────────────────────────────
-Write-Host "`n── Summary ──────────────────────────────────────────────────" -ForegroundColor Cyan
+# -- Summary -------------------------------------------------------------------
+Write-Host "`n-- Summary --------------------------------------------------" -ForegroundColor Cyan
 if ($Errors -eq 0 -and $Warnings -eq 0) {
     Write-Host "[PASS] Environment is ready. All checks passed." -ForegroundColor Green
 } elseif ($Errors -eq 0) {

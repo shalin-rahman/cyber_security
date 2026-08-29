@@ -1,18 +1,18 @@
 # Cyber Security — SEED Web Security Docker Learning Environment
 
-A hands-on, Docker-based Linux, DevOps, Web Application, and Cybersecurity Learning Environment based on the SEED Labs 2.0 Web Security series.
+A hands-on, Docker-first Linux, DevOps, Web Application, and Cybersecurity Learning Environment based on the SEED Labs 2.0 Web Security series.
 
-For authorized educational use only. All vulnerable services run inside isolated Docker containers on your local machine.
+For authorized educational use only. All vulnerable services run inside isolated Docker containers on your local host system.
 
-Official SEED Labs Manuals: https://seedsecuritylabs.org/labs.html
+Official SEED Labs Project: https://seedsecuritylabs.org/labs.html
 
 ---
 
-## 1. Overview
+## 1. Positioning & Educational Intent
 
-This workspace provides a Docker-native implementation of five SEED Labs 2.0 Web Security labs. It eliminates the need for VMware, VirtualBox, or heavy pre-built virtual machine images by leveraging Docker Desktop and Docker Compose.
+This repository provides Docker-first learning environments and comprehensive documentation for selected SEED Web Security labs. Each lab is validated individually against official SEED documentation to run in lightweight, locally built Docker containers without requiring VirtualBox, VMware, or heavy pre-built virtual machines.
 
-The repository follows a structured 3-Layer Learning Framework:
+The environment follows a structured 3-Layer Learning Framework:
 
 ```
 +-----------------------------------------------------------------------+
@@ -38,55 +38,51 @@ The repository follows a structured 3-Layer Learning Framework:
 
 ---
 
-## 2. Global Laboratory Index
+## 2. Global Laboratory Index & Compatibility Matrix
 
-All five security laboratories run independently using Docker Compose. Click any lab link below to open its step-by-step guide:
+All five security laboratories run independently using Docker Compose.
 
-| Lab Directory | Security Topic | Target Domain | Host Port | Target Container | Database Container |
-|---------------|----------------|---------------|-----------|------------------|--------------------|
-| [`labs/01-sql-injection`](seed-web-security-docker/labs/01-sql-injection/README.md) | SQL Injection | `www.seed-server.com` | `10080` | `www-10.9.0.5` | `mysql-10.9.0.6` |
-| [`labs/02-xss`](seed-web-security-docker/labs/02-xss/README.md) | Cross-Site Scripting (XSS) | `www.seed-server.com` | `10081` | `elgg-10.9.0.5` | `mysql-10.9.0.6-xss` |
-| [`labs/03-csrf`](seed-web-security-docker/labs/03-csrf/README.md) | Cross-Site Request Forgery | `www.seed-server.com`<br>`www.attacker32.com` | `10082`<br>`10083` | `elgg-10.9.0.5-csrf`<br>`attacker-10.9.0.105` | `mysql-10.9.0.6-csrf` |
-| [`labs/04-clickjacking`](seed-web-security-docker/labs/04-clickjacking/README.md) | Clickjacking UI Redress | `www.cjlab.com`<br>`www.cjlab-attacker.com` | `10084`<br>`10085` | `cjlab-10.9.0.80`<br>`cjlab-attacker-10.9.0.81` | N/A |
-| [`labs/05-shellshock`](seed-web-security-docker/labs/05-shellshock/README.md) | Shellshock CGI (CVE-2014-6271) | `localhost` | `10086` | `shellshock-10.9.0.80` | N/A |
+| Lab Module | Security Topic | Official SEED Reference | Docker Build | Browser / Client | Host Domain Mapping | Compatibility & Status |
+|------------|----------------|-------------------------|--------------|------------------|---------------------|------------------------|
+| [`labs/01-sql-injection`](seed-web-security-docker/labs/01-sql-injection/README.md) | SQL Injection | [SEED SQLi Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_SQL_Injection/) | Local Dockerfiles | Web Browser | `www.seed-server.com` | [Environment Validated](seed-web-security-docker/labs/01-sql-injection/OFFICIAL-COMPATIBILITY.md) |
+| [`labs/02-xss`](seed-web-security-docker/labs/02-xss/README.md) | Cross-Site Scripting | [SEED XSS Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_XSS_Elgg/) | Local Dockerfiles | Web Browser | `www.seed-server.com` | [Environment Validated](seed-web-security-docker/labs/02-xss/OFFICIAL-COMPATIBILITY.md) |
+| [`labs/03-csrf`](seed-web-security-docker/labs/03-csrf/README.md) | Cross-Site Request Forgery | [SEED CSRF Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/) | Local Dockerfiles | Web Browser (Dual Origin) | `www.seed-server.com`<br>`www.attacker32.com` | [Environment Validated](seed-web-security-docker/labs/03-csrf/OFFICIAL-COMPATIBILITY.md) |
+| [`labs/04-clickjacking`](seed-web-security-docker/labs/04-clickjacking/README.md) | Clickjacking UI Redress | [SEED Clickjacking Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/) | Local Dockerfiles | Web Browser + DevTools | `www.cjlab.com`<br>`www.cjlab-attacker.com` | [Environment Validated](seed-web-security-docker/labs/04-clickjacking/OFFICIAL-COMPATIBILITY.md) |
+| [`labs/05-shellshock`](seed-web-security-docker/labs/05-shellshock/README.md) | Shellshock CGI (CVE-2014-6271) | [SEED Shellshock Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Shellshock/) | Local Dockerfiles | `curl.exe` / Web Browser | Direct CGI Endpoint (`:10086`) | [Environment Validated](seed-web-security-docker/labs/05-shellshock/OFFICIAL-COMPATIBILITY.md) |
 
 ---
 
-## 3. Host System Prerequisites & Environment Verification
+## 3. Host System Hardware Profiles & Requirements
 
-### Requirements
-- Operating System: Windows 10/11 (with Docker Desktop + WSL2 backend), Linux (Ubuntu/Debian), or macOS.
-- Memory: 8 GB RAM minimum (4 GB free allocated to Docker).
-- Disk Space: 10 GB free disk space.
-- Virtualization: VT-x / AMD-V enabled in BIOS/UEFI.
+Run one vulnerable laboratory environment at a time unless testing multi-lab scenarios.
 
-### Pre-flight Health Check Commands
+| Resource Profile | CPU Cores | Total System RAM | Free Disk Space | Operational Scope |
+|------------------|-----------|------------------|-----------------|-------------------|
+| **Minimum** | 4 Logical Cores | 8 GB RAM | 20 GB Disk Space | Running 1 lab container set at a time |
+| **Recommended** | 6–8 Cores | 16 GB RAM | 40 GB Disk Space | Active lab + VS Code + browser DevTools |
+| **Advanced** | 8+ Cores | 32 GB RAM | 60+ GB SSD | Multiple lab instances + custom security tooling |
+
+---
+
+## 4. System Environment Health Verification (`doctor`)
+
+Before launching containers, run the interactive environment diagnostic doctor script to verify Docker daemon liveness, port availability, disk space, and memory allocation.
 
 **Windows PowerShell:**
 ```powershell
-# Verify Docker Engine and Docker Compose versions
-docker version
-docker compose version
-
-# Run automated environment pre-flight validator
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-.\seed-web-security-docker\scripts\check-environment.ps1
+.\seed-web-security-docker\scripts\doctor.ps1
 ```
 
 **Linux / WSL2 Bash:**
 ```bash
-# Verify Docker Engine and Docker Compose versions
-docker version
-docker compose version
-
-# Run automated environment pre-flight validator
-chmod +x seed-web-security-docker/scripts/check-environment.sh
-./seed-web-security-docker/scripts/check-environment.sh
+chmod +x seed-web-security-docker/scripts/doctor.sh
+./seed-web-security-docker/scripts/doctor.sh
 ```
 
 ---
 
-## 4. Hostname Configuration (Local DNS Overrides)
+## 5. Hostname Configuration (Local DNS Overrides)
 
 Several labs use domain names (`www.seed-server.com`, `www.attacker32.com`, `www.cjlab.com`, `www.cjlab-attacker.com`) to demonstrate cross-origin security properties (such as Same-Origin Policy and Cross-Site Request Forgery).
 
@@ -124,7 +120,7 @@ EOF
 
 ---
 
-## 5. The 3-Layer Operational Learning Sequence
+## 6. The 3-Layer Operational Learning Sequence
 
 Every laboratory follows a consistent 3-Layer workflow outlined in [`docs/common-workflow.md`](seed-web-security-docker/docs/common-workflow.md):
 
@@ -237,13 +233,19 @@ exit
 
 ---
 
-## 6. Workspace Documentation Map
-
-Click any file link below to access specific learning modules, architecture diagrams, and platform guides:
+## 7. Workspace Repository Architecture
 
 ```
 cyber_security/
 ├── README.md                                                 Global root repository entry point
+├── LICENSE                                                   [MIT Open Source License](LICENSE)
+├── SECURITY.md                                               [Security Policy & Scope](SECURITY.md)
+├── CODE_OF_CONDUCT.md                                        [Community Code of Conduct](CODE_OF_CONDUCT.md)
+├── CONTRIBUTING.md                                           [Contribution Guidelines](CONTRIBUTING.md)
+├── CHANGELOG.md                                              [Project Release History](CHANGELOG.md)
+├── .github/workflows/
+│   ├── markdown-validation.yml                               [Markdown Validation CI](.github/workflows/markdown-validation.yml)
+│   └── docker-validation.yml                                 [Docker Compose CI](.github/workflows/docker-validation.yml)
 └── seed-web-security-docker/
     ├── README.md                                             [Primary Suite README](seed-web-security-docker/README.md)
     ├── docs/
@@ -269,24 +271,31 @@ cyber_security/
     │       ├── windows-docker-desktop.md                     [Windows Docker Desktop + WSL2 Guide](seed-web-security-docker/docs/platforms/windows-docker-desktop.md)
     │       └── ubuntu-native-docker.md                       [Ubuntu Native Docker Guide](seed-web-security-docker/docs/platforms/ubuntu-native-docker.md)
     ├── labs/
-    │   ├── 01-sql-injection/                                     [Lab 01: SQL Injection](seed-web-security-docker/labs/01-sql-injection/README.md)
-    │   ├── 02-xss/                                               [Lab 02: Cross-Site Scripting (XSS)](seed-web-security-docker/labs/02-xss/README.md)
-    │   ├── 03-csrf/                                              [Lab 03: Cross-Site Request Forgery](seed-web-security-docker/labs/03-csrf/README.md)
-    │   ├── 04-clickjacking/                                      [Lab 04: Clickjacking UI Redress](seed-web-security-docker/labs/04-clickjacking/README.md)
-    │   └── 05-shellshock/                                        [Lab 05: Shellshock CGI](seed-web-security-docker/labs/05-shellshock/README.md)
+    │   ├── 01-sql-injection/                                     [Lab 01: SQL Injection Guide](seed-web-security-docker/labs/01-sql-injection/README.md)
+    │   │   └── OFFICIAL-COMPATIBILITY.md                        [Lab 01 Specification & Compatibility](seed-web-security-docker/labs/01-sql-injection/OFFICIAL-COMPATIBILITY.md)
+    │   ├── 02-xss/                                               [Lab 02: Cross-Site Scripting Guide](seed-web-security-docker/labs/02-xss/README.md)
+    │   │   └── OFFICIAL-COMPATIBILITY.md                        [Lab 02 Specification & Compatibility](seed-web-security-docker/labs/02-xss/OFFICIAL-COMPATIBILITY.md)
+    │   ├── 03-csrf/                                              [Lab 03: CSRF Guide](seed-web-security-docker/labs/03-csrf/README.md)
+    │   │   └── OFFICIAL-COMPATIBILITY.md                        [Lab 03 Specification & Compatibility](seed-web-security-docker/labs/03-csrf/OFFICIAL-COMPATIBILITY.md)
+    │   ├── 04-clickjacking/                                      [Lab 04: Clickjacking UI Redress Guide](seed-web-security-docker/labs/04-clickjacking/README.md)
+    │   │   └── OFFICIAL-COMPATIBILITY.md                        [Lab 04 Specification & Compatibility](seed-web-security-docker/labs/04-clickjacking/OFFICIAL-COMPATIBILITY.md)
+    │   └── 05-shellshock/                                        [Lab 05: Shellshock CGI Guide](seed-web-security-docker/labs/05-shellshock/README.md)
+    │       └── OFFICIAL-COMPATIBILITY.md                        [Lab 05 Specification & Compatibility](seed-web-security-docker/labs/05-shellshock/OFFICIAL-COMPATIBILITY.md)
     └── scripts/
-        ├── check-environment.ps1 / .sh                           [Environment Health Validator](seed-web-security-docker/scripts/check-environment.ps1)
+        ├── doctor.ps1 / .sh                                      [Environment Doctor & Diagnostic Tool](seed-web-security-docker/scripts/doctor.ps1)
+        ├── check-environment.ps1 / .sh                           [Pre-flight Environment Health Check](seed-web-security-docker/scripts/check-environment.ps1)
         ├── status.ps1 / .sh                                      [Active Container Status Inspector](seed-web-security-docker/scripts/status.ps1)
         └── cleanup.ps1 / .sh                                     [Global Workspace Teardown Tool](seed-web-security-docker/scripts/cleanup.ps1)
 ```
 
 ---
 
-## 7. Global Maintenance & Cleanup Commands
-
-When switching labs or freeing disk space:
+## 8. Global Maintenance & Diagnostics Commands
 
 ```powershell
+# Run environment doctor diagnostic tool
+.\seed-web-security-docker\scripts\doctor.ps1
+
 # Show active running lab containers
 .\seed-web-security-docker\scripts\status.ps1
 
@@ -299,8 +308,9 @@ When switching labs or freeing disk space:
 
 ---
 
-## 8. Official Educational References
+## 9. Official Educational References
 
+- Official SEED Lecture Sync: [SEED Lecture & Reference Sitemap](seed-web-security-docker/docs/lectures-and-references.md)
 - SEED Security Labs Project: https://seedsecuritylabs.org/
 - SEED Web Security Series: https://seedsecuritylabs.org/labs.html
 - Authoritative Textbook: *Computer & Internet Security: A Hands-on Approach* (2nd Edition) by Prof. Wenliang Du
