@@ -112,12 +112,12 @@ Several labs use domain names (`www.seed-server.com`, `www.attacker32.com`, `www
 Right-click PowerShell -> "Run as administrator":
 
 ```powershell
-$hostsFile = "C:\Windows\System32\drivers\etc\hosts"
+$hostsFile = "C:\\Windows\\System32\\drivers\\etc\\hosts"
 $entries = @(
-    "10.9.0.5     www.seed-server.com",
-    "10.9.0.105   www.attacker32.com",
-    "10.9.0.80    www.cjlab.com",
-    "10.9.0.81    www.cjlab-attacker.com"
+    "127.0.0.1     www.seed-server.com",
+    "127.0.0.1   www.attacker32.com",
+    "127.0.0.1    www.cjlab.com",
+    "127.0.0.1    www.cjlab-attacker.com"
 )
 foreach ($entry in $entries) {
     $hostName = ($entry -split '\s+')[1]
@@ -133,10 +133,10 @@ foreach ($entry in $entries) {
 ### Linux / WSL2 Setup
 ```bash
 sudo tee -a /etc/hosts << 'EOF'
-10.9.0.5     www.seed-server.com
-10.9.0.105   www.attacker32.com
-10.9.0.80    www.cjlab.com
-10.9.0.81    www.cjlab-attacker.com
+    127.0.0.1     www.seed-server.com
+    127.0.0.1   www.attacker32.com
+    127.0.0.1    www.cjlab.com
+    127.0.0.1    www.cjlab-attacker.com
 EOF
 ```
 
