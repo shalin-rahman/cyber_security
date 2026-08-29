@@ -1,0 +1,139 @@
+# ==============================================================================
+# SEED Labs 2.0 — Cross-Site Request Forgery (CSRF) Attack Lab
+#
+# Official lab manual:
+#   https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/
+#
+# Textbook reference (Wenliang Du):
+#   Chapter 10 — Cross-Site Request Forgery
+#   Computer & Internet Security: A Hands-on Approach
+#
+# Background from lab manual, §1 (Lab Overview):
+#   A CSRF attack forces a logged-in user's browser to send a forged HTTP
+#   request to a trusted web application. The browser automatically attaches
+#   the user's session cookies to every request, regardless of which page
+#   triggered the request. The web application sees a valid authenticated
+#   request and has no way to tell whether the user intended it.
+#
+# Core principle (from lab manual §2):
+#   Browser behaviour: when a page at www.attacker32.com contains an image
+#   tag or form that points to www.seed-server.com, the browser will
+#   automatically include the session cookie for www.seed-server.com in that
+#   request. The request reaches Elgg looking legitimate.
+#
+# Two-domain setup (from lab manual §2.2):
+#   www.seed-server.com  (10.9.0.5)  — legitimate Elgg social network
+#   www.attacker32.com   (10.9.0.105) — attacker's website serving the
+#                                        forged request trigger
+#
+# Hosts file entries required (both):
+#   10.9.0.5    www.seed-server.com
+#   10.9.0.105  www.attacker32.com
+#
+#   Linux / macOS / WSL2:
+#     echo "10.9.0.5    www.seed-server.com"  | sudo tee -a /etc/hosts
+#     echo "10.9.0.105  www.attacker32.com"   | sudo tee -a /etc/hosts
+#
+#   Windows (PowerShell as Administrator):
+#     Add-Content C:\Windows\System32\drivers\etc\hosts "10.9.0.5    www.seed-server.com"
+#     Add-Content C:\Windows\System32\drivers\etc\hosts "10.9.0.105  www.attacker32.com"
+# ==============================================================================
+
+version: "3"
+
+services:
+
+  elgg:
+    # The Elgg social network — the legitimate trusted site.
+    # Alice (victim) logs in here and maintains a session cookie for
+    # www.seed-server.com. When her browser later visits www.attacker32.com,
+    # any request that attacker page makes to www.seed-server.com will carry
+    # Alice's session cookie automatically.
+    #
+    # Elgg user accounts (from lab manual §2.2):
+    #   admin   / seedelgg  (admin ID: 1)
+    #   alice   / seedalice  (user ID: 56) — typically the victim
+    #   boby    / seedboby   (user ID: 57)
+    #   charlie / seedcharlie (user ID: 58)
+    #   samy    / seedsamy   (user ID: 59) — typically the attacker
+    image: handsonsecurity/seed-image-www-csrf-elgg
+    container_name: elgg-10.9.0.5-csrf
+    tty: true
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    networks:
+      net-10.9.0.0:
+        ipv4_address: 10.9.0.5
+    ports:
+      # Elgg (legitimate site): http://www.seed-server.com
+      - "10082:80"
+    environment:
+      - MYSQL_HOST=10.9.0.6
+
+  attacker:
+    # The attacker's web server. This is a plain Apache instance that serves
+    # the malicious HTML page students write during the lab tasks.
+    #
+    # From lab manual §3 (Task 2 — CSRF using GET):
+    #   The attacker page contains something like:
+    #     <img src="http://www.seed-server.com/action/friends/add?friend=59"
+    #          width=1 height=1 />
+    #
+    #   When Alice visits www.attacker32.com while still logged into Elgg,
+    #   her browser fetches this image — sending her session cookie to Elgg —
+    #   and Elgg processes the friend request as if Alice initiated it.
+    #
+    # From lab manual §3 (Task 3 — CSRF using POST):
+    #   POST requests require a forged form with JavaScript auto-submit,
+    #   since an <img> tag can only trigger GET requests.
+    image: handsonsecurity/seed-image-www-csrf-attacker
+    container_name: attacker-10.9.0.105
+    tty: true
+    restart: unless-stopped
+    networks:
+      net-10.9.0.0:
+        ipv4_address: 10.9.0.105
+    ports:
+      # Attacker site: http://www.attacker32.com
+      - "10083:80"
+
+  mysql:
+    # Elgg's database. Not accessible from the host.
+    # Used internally by the elgg container.
+    image: handsonsecurity/seed-image-mysql-csrf
+    container_name: mysql-10.9.0.6-csrf
+    restart: unless-stopped
+    networks:
+      net-10.9.0.0:
+        ipv4_address: 10.9.0.6
+    environment:
+      - MYSQL_ROOT_PASSWORD=seedubuntu
+    command: --default-authentication-plugin=mysql_native_password
+
+networks:
+  net-10.9.0.0:
+    name: net-10.9.0.0-csrf
+    ipam:
+      config:
+        - subnet: 10.9.0.0/24
+
+# ==============================================================================
+# Countermeasures covered in the lab (from lab manual §4 and §5):
+#
+# 1. Synchronizer CSRF Token (Task 4):
+#    Elgg generates a unique, unpredictable token (__elgg_token) per session.
+#    This token is embedded in every legitimate form. The attacker cannot
+#    read it from www.attacker32.com due to the Same-Origin Policy, so
+#    forged requests will fail the server-side token check.
+#
+# 2. SameSite Cookie Attribute (Task 5):
+#    Set-Cookie: Elgg=...; SameSite=Strict
+#    With Strict mode, the browser will not attach the Elgg session cookie
+#    to any cross-site request — the forged GET or POST arrives without
+#    credentials, and Elgg treats it as unauthenticated.
+#
+# Resource usage (approximate):
+#   elgg + attacker + mysql: ~800 MB RAM combined
+#   Images (disk): ~2.5 GB
+# ==============================================================================

@@ -1,0 +1,119 @@
+# ==============================================================================
+# SEED Labs 2.0 — Clickjacking Attack Lab
+#
+# Official lab manual:
+#   https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/
+#
+# Textbook reference (Wenliang Du):
+#   Chapter 13 — Clickjacking Attack
+#   Computer & Internet Security: A Hands-on Approach
+#
+# Background from lab manual, §1 (Lab Overview):
+#   Clickjacking (also known as a UI redress attack) tricks a user into
+#   clicking on something different from what they perceive. The attacker
+#   loads the target page in a transparent iframe and positions it precisely
+#   over a visible "bait" element on their own page. The user believes they
+#   are clicking the bait, but the click registers on the hidden target below.
+#
+# Attack mechanism (from lab manual §2):
+#
+#   1. The attacker creates a page at www.cjlab-attacker.com with a visible
+#      "Click here" button.
+#   2. The page also loads www.cjlab.com inside an <iframe> with opacity: 0.
+#   3. The iframe is positioned using CSS so that the target button (e.g.,
+#      "Delete Account") sits directly beneath the visible bait button.
+#   4. When the victim clicks what looks like the bait, the browser registers
+#      the click on the invisible iframe's button instead.
+#
+# CSS technique used in the attack (from lab manual §3):
+#   iframe {
+#     opacity: 0.0;         /* invisible */
+#     position: absolute;
+#     z-index: 1;           /* in front of bait layer */
+#     top: <aligned value>;
+#     left: <aligned value>;
+#   }
+#
+# Two domains used in this lab:
+#   www.cjlab.com          (10.9.0.80)  — legitimate target site
+#   www.cjlab-attacker.com (10.9.0.81)  — attacker's overlay page
+#
+# Hosts file entries required (both):
+#   10.9.0.80   www.cjlab.com
+#   10.9.0.81   www.cjlab-attacker.com
+# ==============================================================================
+
+version: "3"
+
+services:
+
+  target-website:
+    # The target website — the legitimate site the attacker wants to abuse.
+    # Contains a button that performs a privileged action (like deleting an
+    # account or submitting a form). The victim has no intention of clicking it.
+    #
+    # From lab manual §2.1: "The target website (www.cjlab.com) has a page
+    # with a button. When a user clicks the button, it will send an HTTP request
+    # to the web server, causing an action to be executed."
+    #
+    # Task 4 (Countermeasure): Adding X-Frame-Options: DENY to this server's
+    # Apache config prevents browsers from embedding it in any iframe at all.
+    #
+    # Task 5 (Countermeasure): Content-Security-Policy: frame-ancestors 'none'
+    # achieves the same effect with more flexibility (allowlists are possible).
+    image: handsonsecurity/seed-image-www-clickjacking
+    container_name: cjlab-10.9.0.80
+    tty: true
+    restart: unless-stopped
+    networks:
+      net-10.9.0.0:
+        ipv4_address: 10.9.0.80
+    ports:
+      # Target site: http://www.cjlab.com
+      - "10084:80"
+
+  attacker-website:
+    # The attacker's page. Serves the iframe overlay that wraps the target.
+    # Students modify this page during Tasks 2 and 3 to:
+    #   - Load the target in a transparent iframe
+    #   - Adjust position until the iframe's button aligns with the bait button
+    #
+    # During Task 3, students must calculate the exact pixel offset to align
+    # the hidden "Like" button with the visible bait button, demonstrating
+    # that position guessing is a realistic part of a real clickjacking attack.
+    image: handsonsecurity/seed-image-www-clickjacking-attacker
+    container_name: cjlab-attacker-10.9.0.81
+    tty: true
+    restart: unless-stopped
+    networks:
+      net-10.9.0.0:
+        ipv4_address: 10.9.0.81
+    ports:
+      # Attacker site: http://www.cjlab-attacker.com
+      - "10085:80"
+
+networks:
+  net-10.9.0.0:
+    name: net-10.9.0.0-clickjacking
+    ipam:
+      config:
+        - subnet: 10.9.0.0/24
+
+# ==============================================================================
+# Countermeasures (from lab manual §5):
+#
+# X-Frame-Options (Task 4):
+#   Apache config: Header always set X-Frame-Options "DENY"
+#   Effect: browser refuses to render the target page inside any iframe.
+#   Limitation: cannot allow specific trusted origins.
+#
+# Content-Security-Policy frame-ancestors (Task 5):
+#   Apache config: Header always set Content-Security-Policy "frame-ancestors 'none'"
+#   Effect: same as X-Frame-Options DENY, but frame-ancestors supports
+#   an allowlist (e.g., 'self' to allow same-origin framing only).
+#   CSP frame-ancestors supersedes X-Frame-Options in modern browsers.
+#
+# Resource usage (approximate):
+#   Two Apache containers: ~200 MB RAM total
+#   Images (disk): ~500 MB
+# ==============================================================================
