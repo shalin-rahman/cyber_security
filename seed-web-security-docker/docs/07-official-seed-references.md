@@ -7,9 +7,9 @@ This document compiles official SEED Labs 2.0 links, textbook cross-references, 
 ## 1. Official SEED Web Security Lab References
 
 - SEED Security Labs Main Repository: https://seedsecuritylabs.org/
-- SEED 20.04 Web Security Category: https://seedsecuritylabs.org/Labs_20.04/Web/
+- SEED 20.04 Web Security Category: https://seedsecuritylabs.org/labs.html
+- SEED Lab Setup Guide & Manuals: https://seedsecuritylabs.org/labsetup.html
 - SEED Official GitHub Organization: https://github.com/seed-labs/seed-labs
-- SEED Docker Manual: https://seedsecuritylabs.org/manuals/docker/
 
 ---
 
@@ -43,21 +43,3 @@ This document compiles official SEED Labs 2.0 links, textbook cross-references, 
 - **Title**: *Computer & Internet Security: A Hands-on Approach* (2nd Edition, 2019)
 - **Website**: https://www.handsonsecurity.net/
 - **Video Lectures**: https://www.handsonsecurity.net/video.html
-
-### Relevant Chapters
-- Chapter 3: Environment Variable and Set-UID Programs (Shellshock Case Study)
-- Chapter 10: Cross-Site Request Forgery
-- Chapter 11: Cross-Site Scripting Attack
-- Chapter 12: SQL Injection Attack
-- Chapter 13: Clickjacking Attack
-
----
-
-## 4. Industry Standards & Vulnerability Databases
-
-- **NVD CVE-2014-6271 (Shellshock)**: https://nvd.nist.gov/vuln/detail/CVE-2014-6271
-- **OWASP Top 10 Web Application Security Risks**: https://owasp.org/www-project-top-ten/
-- **CWE-89 (SQL Injection)**: https://cwe.mitre.org/data/definitions/89.html
-- **CWE-79 (Cross-Site Scripting)**: https://cwe.mitre.org/data/definitions/79.html
-- **CWE-352 (Cross-Site Request Forgery)**: https://cwe.mitre.org/data/definitions/352.html
-- **CWE-1021 (Clickjacking / UI Redress)**: https://cwe.mitre.org/data/definitions/1021.html

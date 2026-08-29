@@ -7,10 +7,9 @@ This document provides official SEED Security Labs references, project links, so
 ## 1. Official SEED Web Security References
 
 - **SEED Security Labs Main Site**: https://seedsecuritylabs.org/
-- **SEED Labs Setup Manual**: https://seedsecuritylabs.org/labsetup.html
-- **SEED Labs 2.0 Overview**: https://seedsecuritylabs.org/labs.html
+- **SEED Labs Overview**: https://seedsecuritylabs.org/labs.html
+- **SEED Labs Setup Guide & Manuals**: https://seedsecuritylabs.org/labsetup.html
 - **SEED Official GitHub Organization**: https://github.com/seed-labs/seed-labs
-- **SEED Docker Manual**: https://seedsecuritylabs.org/manuals/docker/
 
 ---
 

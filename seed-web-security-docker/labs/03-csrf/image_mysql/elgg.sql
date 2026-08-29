@@ -1,0 +1,4 @@
+CREATE DATABASE IF NOT EXISTS elgg_csrf;
+USE elgg_csrf;
+CREATE TABLE IF NOT EXISTS users (id INT PRIMARY KEY, name VARCHAR(50));
+INSERT INTO users VALUES (56, 'alice'), (59, 'samy');

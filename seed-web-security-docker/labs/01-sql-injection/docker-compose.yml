@@ -3,70 +3,13 @@
 #
 # Official lab manual:
 #   https://seedsecuritylabs.org/Labs_20.04/Web/Web_SQL_Injection/
-#
-# Textbook reference (Wenliang Du):
-#   Chapter 12 — SQL Injection Attack
-#   Computer & Internet Security: A Hands-on Approach
-#
-# Background from lab manual, §1 (Lab Overview):
-#   SQL injection attacks exploit the way web applications construct
-#   database queries. When user-supplied input is concatenated directly
-#   into a SQL string without sanitization, an attacker can alter the
-#   query's logic — bypassing authentication, extracting data, or
-#   modifying records.
-#
-# Architecture (from lab manual, §2):
-#
-#   Browser
-#     |
-#     | HTTP request (form submission)
-#     v
-#   www container — Apache + PHP application (10.9.0.5)
-#     |
-#     | SQL query over internal Docker network
-#     v
-#   mysql container — MySQL 8.x (10.9.0.6)
-#     |
-#     | Result set returned (attacker's payload alters what is returned)
-#     v
-#   www container — PHP renders result to browser
-#
-# Network:
-#   Both containers share an isolated bridge network: 10.9.0.0/24.
-#   MySQL is not reachable from the host; only the web container
-#   can reach it. This matches the lab manual's network topology.
-#
-# Before starting this lab:
-#   Add the following line to your hosts file:
-#     10.9.0.5   www.seed-server.com
-#
-#   Linux / macOS / WSL2:
-#     echo "10.9.0.5   www.seed-server.com" | sudo tee -a /etc/hosts
-#
-#   Windows (PowerShell as Administrator):
-#     Add-Content C:\Windows\System32\drivers\etc\hosts "10.9.0.5   www.seed-server.com"
 # ==============================================================================
-
-version: "3"
 
 services:
 
   www:
-    # The web server container runs the vulnerable PHP application.
-    # The application was written for the SEED lab — it deliberately uses
-    # unsafe query construction so students can study the exploit.
-    #
-    # From the lab manual §2: "The web server runs a simple web application
-    # that is vulnerable to SQL injection. Users can query employee information
-    # by entering a name in the search form."
-    #
-    # The unsafe query inside the PHP code (simplified):
-    #   $sql = "SELECT * FROM credential WHERE name='$name' AND Password='$pwd'";
-    #
-    # Secure equivalent using prepared statements (the countermeasure):
-    #   $stmt = $conn->prepare("SELECT * FROM credential WHERE name=? AND Password=?");
-    #   $stmt->bind_param("ss", $name, $pwd);
-    image: handsonsecurity/seed-image-www-sqli
+    build: ./image_www
+    image: seed-image-www-sqli
     container_name: www-10.9.0.5
     tty: true
     restart: unless-stopped
@@ -76,32 +19,13 @@ services:
       net-10.9.0.0:
         ipv4_address: 10.9.0.5
     ports:
-      # Port mapping: host:10080 → container:80 (Apache)
-      # Access the lab at: http://www.seed-server.com  (requires /etc/hosts)
-      #                 or: http://localhost:10080       (direct, hostname not required)
-      # Note: some Elgg session features require the hostname — prefer the FQDN.
       - "10080:80"
     environment:
-      # Tells the PHP application where to find the database.
-      # This resolves to the mysql container's static IP on the Docker network.
       - MYSQL_HOST=10.9.0.6
 
   mysql:
-    # The database container holds the 'sqllab_users' database.
-    # It is pre-seeded with the credential table used in the lab.
-    #
-    # From the lab manual §2:
-    #   Table: credential
-    #   Columns: ID, Name, EID, Salary, Birthday, SSN, PhoneNumber, Address,
-    #            Email, NickName, Password
-    #
-    # The database is intentionally accessible with root/dees to let students
-    # inspect the data and verify their injection payloads.
-    #
-    # Port 3306 is NOT forwarded to the host. Students access MySQL by
-    # exec-ing into this container or from the www container.
-    #   docker exec -it mysql-10.9.0.6 mysql -u root -pdees
-    image: handsonsecurity/seed-image-mysql-sqli
+    build: ./image_mysql
+    image: seed-image-mysql-sqli
     container_name: mysql-10.9.0.6
     restart: unless-stopped
     networks:
@@ -110,43 +34,10 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=dees
     command: --default-authentication-plugin=mysql_native_password
-    # mysql_native_password is required because the PHP app uses the older
-    # authentication method. MySQL 8+ defaults to caching_sha2_password,
-    # which the PHP mysqli driver in the image does not support.
 
 networks:
   net-10.9.0.0:
-    # Isolated bridge network for this lab only.
-    # Named with the lab suffix (-sqli) to prevent collision with other labs
-    # if multiple labs are running simultaneously.
     name: net-10.9.0.0-sqli
     ipam:
       config:
         - subnet: 10.9.0.0/24
-
-# ==============================================================================
-# Useful commands while running this lab:
-#
-# View running containers:
-#   docker compose ps
-#
-# Follow Apache logs (see HTTP requests from your browser):
-#   docker compose logs -f www
-#
-# Enter the web container to inspect PHP files:
-#   docker exec -it www-10.9.0.5 bash
-#   ls /var/www/html/
-#
-# Connect to MySQL directly:
-#   docker exec -it mysql-10.9.0.6 mysql -u root -pdees
-#   USE sqllab_users; SELECT * FROM credential;
-#
-# Reset lab (restores original database — all changes lost):
-#   docker compose down -v
-#   docker compose up -d
-#
-# Resource usage (approximate):
-#   www container:   ~200 MB RAM
-#   mysql container: ~400 MB RAM
-#   Images (disk):   ~1.5 GB
-# ==============================================================================
