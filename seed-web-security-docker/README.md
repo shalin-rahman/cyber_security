@@ -1,193 +1,427 @@
 # SEED Web Security Docker Learning Environment
 
-A Docker-Based Linux, DevOps, Web Application, and Cybersecurity Learning Environment.
+Docker-based hands-on learning environment for SEED Labs 2.0 Web Security.
+No VMware. No VirtualBox. No pre-built VM.
 
-For authorized educational use only. All vulnerable services run inside isolated Docker containers on your local machine.
+For authorized educational use only. All vulnerable services are isolated inside Docker containers on your local machine.
+
+Official SEED Labs: https://seedsecuritylabs.org/labs.html
 
 ---
 
-## 1. Overview
+## Overview
 
-This repository provides a complete, Docker-based hands-on learning environment for studying selected SEED Labs 2.0 Web Security labs without requiring VMware, VirtualBox, or a heavy pre-built SEED Virtual Machine.
-
-Rather than treating security exercises as isolated web vulnerability tests, this environment uses a **multi-layer learning framework** where students learn systems engineering, container management, network routing, web architecture, and cybersecurity in a single unified workflow.
+This repository implements five SEED Labs 2.0 Web Security labs entirely inside Docker containers. Each lab teaches three things at once: Linux systems knowledge, Docker container operations, and web security vulnerability mechanics.
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│              CYBERSECURITY LEARNING ENVIRONMENT         │
-└─────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────┐
-│ LAYER 1: LINUX                                          │
-│ Filesystem, Processes, Users, Permissions, Networking,  │
-│ Logs, Environment Variables                             │
-└─────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────┐
-│ LAYER 2: DOCKER                                         │
-│ Images, Containers, Networks, Ports, Volumes, Compose,  │
-│ Container Debugging                                     │
-└─────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────┐
-│ LAYER 3: WEB SECURITY LAB                               │
-│ HTTP, Cookies, Sessions, Web App, Database, Flaws,      │
-│ Attack Flows, Countermeasures                           │
-└─────────────────────────────────────────────────────────┘
+LAYER 1 — LINUX
+  Shell commands, filesystem, processes, users, permissions, logs
+
+LAYER 2 — DOCKER
+  Images, containers, networks, volumes, Docker Compose
+
+LAYER 3 — WEB SECURITY
+  SQL Injection, XSS, CSRF, Clickjacking, Shellshock
 ```
 
 ---
 
-## 2. Multi-Layer Learning Structure
+## Requirements
 
-The repository is structured across five interconnected learning domains:
+- Docker Desktop (Windows/macOS) or Docker Engine (Linux)
+- Docker Compose (included with Docker Desktop)
+- 4 GB RAM free minimum (8 GB recommended)
+- 10 GB free disk space
 
-```
-Docker-Based Learning Environment
-├── Linux Learning              (Shell navigation, permissions, process tables, env vars)
-├── Docker Learning             (Container lifecycle, bridge networks, volumes, compose)
-├── Networking Learning         (IP allocation, container DNS, host port forwarding, hosts)
-├── Web Application Learning    (Apache HTTP server, PHP execution, MySQL databases)
-└── Cybersecurity Learning      (SQLi, XSS, CSRF, Clickjacking, Shellshock vulnerabilities)
-```
+**Verify your setup before starting:**
 
-### Learning Progression Path
+```bash
+# Check Docker is installed and daemon is running
+docker version
 
-```
-Linux Basics
-     │
-     ▼
-Docker Basics
-     │
-     ▼
-Container Networking
-     │
-     ▼
-Web Application Architecture
-     │
-     ▼
-HTTP, Cookies, and Sessions
-     │
-     ▼
-Database Interaction
-     │
-     ▼
-SEED Security Labs
-├── 01 SQL Injection
-├── 02 Cross-Site Scripting (XSS)
-├── 03 Cross-Site Request Forgery (CSRF)
-├── 04 Clickjacking
-└── 05 Shellshock Vulnerability
+# Check Docker Compose is available
+docker compose version
+
+# Check available disk space
+docker system df
 ```
 
 ---
 
-## 3. Technical Clarification: Docker Container vs Full Linux VM
+## Labs Quick Start
 
-Docker containers provide an isolated Linux user-space environment running directly on the host OS kernel (or WSL2 Linux kernel). While containers excel at application, web server, and database experimentation, a Docker container is not a complete replacement for a full Linux virtual machine.
+Each lab is self-contained. Run one at a time.
 
+### Lab 01 — SQL Injection Attack Lab
+
+```bash
+cd labs/01-sql-injection
+
+# Build images from local Dockerfiles and start containers
+docker compose up -d --build
+
+# Verify both containers are running
+docker compose ps
+
+# Access the vulnerable app
+# http://localhost:10080
 ```
-Full Virtual Machine                     Docker Container
-+---------------------------------+      +---------------------------------+
-| Guest Linux Kernel              |      | Host / WSL2 Linux Kernel        |
-| Full OS Init (systemd)          |      |  +---------------------------+  |
-| Virtual Hardware & Drivers      |      |  | Container User Space      |  |
-| User Applications               |      |  | Isolated Process & Net    |  |
-+---------------------------------+      |  | Application Process       |  |
-                                         |  +---------------------------+  |
-                                         +---------------------------------+
+
+### Lab 02 — XSS Attack Lab
+
+```bash
+cd labs/02-xss
+docker compose up -d --build
+docker compose ps
+# http://localhost:10081
 ```
 
-### Scope Summary
+### Lab 03 — CSRF Attack Lab
 
-- **Docker Container CAN Teach**: Linux shell commands, filesystem navigation, process management, users and permissions, environment variables, container networking, log analysis, web server management, database administration, and web vulnerability mechanics.
-- **Docker Container IS NOT Designed For**: Full OS bootloader execution, custom kernel module development (`.ko`), hardware-level device drivers, or kernel-space security research.
+```bash
+cd labs/03-csrf
+docker compose up -d --build
+docker compose ps
+# Target site:   http://localhost:10082
+# Attacker site: http://localhost:10083
+```
 
-For detailed comparison tables and capability matrices, see [docs/container-vs-linux-vm.md](docs/container-vs-linux-vm.md).
+### Lab 04 — Clickjacking Attack Lab
+
+```bash
+cd labs/04-clickjacking
+docker compose up -d --build
+docker compose ps
+# Target site:   http://localhost:10084
+# Attacker site: http://localhost:10085
+```
+
+### Lab 05 — Shellshock Vulnerability Lab
+
+```bash
+cd labs/05-shellshock
+docker compose up -d --build
+docker compose ps
+# Vulnerable CGI: http://localhost:10086/cgi-bin/vul.cgi
+# Safe CGI:       http://localhost:10086/cgi-bin/safe.cgi
+```
 
 ---
 
-## 4. Lab Compatibility Matrix
+## Hostname Configuration (Optional but Recommended)
 
-All five labs support full execution using Docker and Docker Compose. No VMware or VirtualBox is required.
+SEED lab tasks and screenshots use domain names instead of localhost ports.
+Add these entries to your hosts file so the domains resolve to container IPs.
 
-| # | Lab | Docker Images | Host Access Port | Hostname Mapping |
-|---|-----|--------------|------------------|------------------|
-| 01 | [SQL Injection](./labs/01-sql-injection/README.md) | `seed-image-www-sqli`<br>`seed-image-mysql-sqli` | `10080` | `www.seed-server.com` |
-| 02 | [XSS (Elgg)](./labs/02-xss/README.md) | `seed-image-www-xss-elgg`<br>`seed-image-mysql-xss-elgg` | `10081` | `www.seed-server.com` |
-| 03 | [CSRF (Elgg)](./labs/03-csrf/README.md) | `seed-image-www-csrf-elgg`<br>`seed-image-www-csrf-attacker`<br>`seed-image-mysql-csrf` | `10082`<br>`10083` | `www.seed-server.com`<br>`www.attacker32.com` |
-| 04 | [Clickjacking](./labs/04-clickjacking/README.md) | `seed-image-www-clickjacking`<br>`seed-image-www-clickjacking-attacker` | `10084`<br>`10085` | `www.cjlab.com`<br>`www.cjlab-attacker.com` |
-| 05 | [Shellshock](./labs/05-shellshock/README.md) | `seed-image-www-shellshock` | `10086` | `www.seedlab-shellshock.com` |
+**Windows** — Open PowerShell as Administrator:
+
+```powershell
+# Add all lab hostnames at once
+$hostsFile = "C:\Windows\System32\drivers\etc\hosts"
+$entries = @(
+    "10.9.0.5     www.seed-server.com",
+    "10.9.0.105   www.attacker32.com",
+    "10.9.0.80    www.cjlab.com",
+    "10.9.0.81    www.cjlab-attacker.com"
+)
+foreach ($entry in $entries) {
+    Add-Content -Path $hostsFile -Value $entry
+}
+```
+
+**Linux / WSL2:**
+
+```bash
+sudo tee -a /etc/hosts << 'EOF'
+10.9.0.5     www.seed-server.com
+10.9.0.105   www.attacker32.com
+10.9.0.80    www.cjlab.com
+10.9.0.81    www.cjlab-attacker.com
+EOF
+```
 
 ---
 
-## 5. Documentation Directory Index
+## Essential Docker Commands Reference
+
+These commands are used throughout all labs. Learn them once, apply everywhere.
+
+### Container Lifecycle
+
+```bash
+# Build images and start all services in background
+docker compose up -d --build
+
+# Start without rebuilding (uses existing images)
+docker compose up -d
+
+# Stop containers (preserves database volumes)
+docker compose down
+
+# Stop AND delete all data volumes (full reset)
+docker compose down -v
+
+# Show running containers with ports and status
+docker compose ps
+
+# Show container resource usage (CPU, RAM, network)
+docker stats
+```
+
+### Entering a Container Shell
+
+```bash
+# Open an interactive bash shell inside a running container
+docker exec -it <container-name> bash
+
+# Example: enter the web server container in Lab 01
+docker exec -it www-10.9.0.5 bash
+
+# Example: enter the MySQL container in Lab 01
+docker exec -it mysql-10.9.0.6 bash
+```
+
+### Inspecting Running Containers
+
+```bash
+# List all running containers (name, image, ports, status)
+docker ps
+
+# Show detailed container configuration (IP, network, mounts, env vars)
+docker inspect <container-name>
+
+# Show container IP address specifically
+docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' <container-name>
+
+# Show real-time logs from a container
+docker logs -f <container-name>
+
+# Show last 50 lines of logs
+docker logs --tail 50 <container-name>
+```
+
+### Linux Inspection Inside Containers
+
+Once inside a container shell (`docker exec -it <name> bash`):
+
+```bash
+# Who am I running as?
+whoami
+id
+
+# What is this container's hostname?
+hostname
+
+# What is this container's IP address?
+ip addr show
+# or: hostname -I
+
+# What processes are running?
+ps aux
+
+# What is the web server serving?
+ls -la /var/www/html/
+
+# View Apache access logs
+cat /var/log/apache2/access.log
+tail -f /var/log/apache2/error.log
+
+# View environment variables (check MYSQL_HOST, passwords)
+env
+
+# Check disk usage
+df -h
+
+# Check open network connections
+ss -tlnp
+```
+
+### Database Access
+
+```bash
+# Connect to MySQL inside the database container
+docker exec -it mysql-10.9.0.6 mysql -u root -pdees sqllab_users
+
+# Or connect from the web container to MySQL at 10.9.0.6
+docker exec -it www-10.9.0.5 bash
+# Inside: mysql -h 10.9.0.6 -u root -pdees sqllab_users
+
+# Inside MySQL shell — useful commands
+SHOW DATABASES;
+USE sqllab_users;
+SHOW TABLES;
+DESCRIBE credential;
+SELECT * FROM credential;
+```
+
+### Image and Cleanup Management
+
+```bash
+# List all locally built images
+docker images
+
+# Remove a specific image (force rebuild next time)
+docker rmi seed-image-www-sqli
+
+# Remove all stopped containers, unused networks, dangling images
+docker system prune
+
+# Remove everything including volumes (WARNING: deletes all lab data)
+docker system prune -a --volumes
+
+# Check how much disk Docker is using
+docker system df
+```
+
+---
+
+## Lab Container Architecture
+
+Each lab runs on an isolated Docker bridge network (`10.9.0.0/24`).
+Containers have fixed IPs. The host machine connects via mapped ports.
+
+```
+HOST MACHINE (Windows / Linux / macOS)
+  |
+  |  Port 10080 -> www-10.9.0.5:80    (Lab 01 web server)
+  |  Port 10081 -> elgg-10.9.0.5:80   (Lab 02 web server)
+  |  Port 10082 -> elgg-10.9.0.5:80   (Lab 03 target site)
+  |  Port 10083 -> attacker:80         (Lab 03 attacker site)
+  |  Port 10084 -> cjlab:80            (Lab 04 target site)
+  |  Port 10085 -> cjlab-attacker:80   (Lab 04 attacker site)
+  |  Port 10086 -> shellshock:80       (Lab 05 CGI server)
+  |
+  Docker bridge network (10.9.0.0/24)
+    |
+    +-- 10.9.0.5   www container    (Apache + PHP)
+    +-- 10.9.0.6   mysql container  (MySQL 8.0)
+    +-- 10.9.0.105 attacker         (Apache static site)
+```
+
+---
+
+## Lab Port and Hostname Reference
+
+| Lab | Container Name | Host Port | Domain | Official Lab Page |
+|-----|---------------|-----------|--------|-------------------|
+| 01 SQL Injection | `www-10.9.0.5` | 10080 | `www.seed-server.com` | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Web_SQL_Injection/) |
+| 02 XSS | `elgg-10.9.0.5` | 10081 | `www.seed-server.com` | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Web_XSS_Elgg/) |
+| 03 CSRF | `elgg-10.9.0.5-csrf` | 10082 | `www.seed-server.com` | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/) |
+| 03 CSRF | `attacker-10.9.0.105` | 10083 | `www.attacker32.com` | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/) |
+| 04 Clickjacking | `cjlab-10.9.0.80` | 10084 | `www.cjlab.com` | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/) |
+| 04 Clickjacking | `cjlab-attacker-10.9.0.81` | 10085 | `www.cjlab-attacker.com` | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/) |
+| 05 Shellshock | `shellshock-10.9.0.80` | 10086 | direct IP only | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Shellshock/) |
+
+---
+
+## Reset a Lab
+
+If the database gets corrupted or you want to redo tasks from a clean state:
+
+```bash
+cd labs/01-sql-injection   # (or whichever lab)
+
+# Destroy containers AND volumes, then rebuild from scratch
+docker compose down -v
+docker compose up -d --build
+```
+
+This wipes the database volume and re-runs the `.sql` init script, restoring original data.
+
+---
+
+## Repository Structure
 
 ```
 seed-web-security-docker/
-├── README.md                                 Main repository entry point
-├── docs/
-│   ├── container-vs-linux-vm.md             Technical Container vs VM comparison
-│   ├── resources.md                         System hardware resource allocation guide
-│   ├── common-workflow.md                   Standard 14-step operational learning flow
-│   ├── troubleshooting.md                   Multi-layer 3-level diagnostic guide
-│   ├── official-seed-sources.md             Official SEED URLs, citations & repositories
-│   ├── docker/
-│   │   ├── 01-docker-basics.md              Docker architecture & client-server model
-│   │   ├── 02-images-and-containers.md      Image layers vs writable container layers
-│   │   ├── 03-networks.md                   Bridge networking & container DNS
-│   │   ├── 04-volumes.md                    Persistent storage & database resets
-│   │   └── 05-compose.md                    Declarative compose orchestration
-│   ├── linux/
-│   │   ├── 01-linux-basics-in-containers.md Container shell access & identity
-│   │   ├── 02-filesystem-and-navigation.md  Linux FHS hierarchy & navigation
-│   │   ├── 03-users-and-permissions.md      Least privilege & permission controls
-│   │   ├── 04-processes-and-services.md     PID namespaces & process inspection
-│   │   ├── 05-networking-in-containers.md   Container interfaces & IP resolution
-│   │   ├── 06-logs-and-debugging.md         Container stdout vs application logs
-│   │   └── 07-environment-and-configuration.md Env var configuration & pass-through
-│   └── platforms/
-│       ├── windows-docker-desktop.md        Windows 10/11 + Docker Desktop + WSL2 setup
-│       └── ubuntu-native-docker.md          Native Ubuntu Linux + Docker Engine setup
-├── labs/
-│   ├── 01-sql-injection/                    SQL Injection Attack Lab
-│   ├── 02-xss/                              Cross-Site Scripting (XSS) Attack Lab
-│   ├── 03-csrf/                             Cross-Site Request Forgery (CSRF) Lab
-│   ├── 04-clickjacking/                     Clickjacking Attack Lab
-│   └── 05-shellshock/                       Shellshock Vulnerability Lab
-└── scripts/
-    ├── check-environment.sh / .ps1          Automated environment pre-flight validation
-    ├── status.sh / .ps1                     Running container & port inspector
-    └── cleanup.sh / .ps1                    Safe container and image cleanup tool
+|
++-- README.md                       This file — start here
+|
++-- docs/
+|   +-- container-vs-linux-vm.md   Why Docker instead of VM, and limitations
+|   +-- common-workflow.md         Standard 14-step lab workflow
+|   +-- troubleshooting.md         Docker diagnostic commands
+|   +-- lectures-and-references.md Official SEED + OWASP + CVE references
+|   +-- docker/                    Docker learning modules (01-05)
+|   +-- linux/                     Linux learning modules (01-07)
+|   +-- platforms/
+|       +-- windows-docker-desktop.md   Windows + WSL2 setup guide
+|       +-- ubuntu-native-docker.md     Ubuntu Linux setup guide
+|
++-- labs/
+|   +-- 01-sql-injection/
+|   |   +-- README.md              Lab tasks, payloads, countermeasures
+|   |   +-- docker-compose.yml     Container definitions
+|   |   +-- image_www/             Web server Dockerfile + PHP source code
+|   |   +-- image_mysql/           MySQL Dockerfile + SQL init script
+|   |   +-- setup.sh / .ps1        Build images and configure hosts file
+|   |   +-- start.sh / .ps1        Start containers
+|   |   +-- stop.sh  / .ps1        Stop containers (preserves data)
+|   |   +-- reset.sh / .ps1        Wipe data and restart from scratch
+|   |
+|   +-- 02-xss/                    (same structure as above)
+|   +-- 03-csrf/                   (includes image_attacker/)
+|   +-- 04-clickjacking/           (includes image_target/ and image_attacker/)
+|   +-- 05-shellshock/             (CGI scripts in image_www/)
+|
++-- scripts/
+    +-- check-environment.sh/.ps1  Pre-flight Docker environment validator
+    +-- status.sh/.ps1             Show all running lab containers
+    +-- cleanup.sh/.ps1            Remove stopped containers and images
 ```
 
 ---
 
-## 6. Pre-flight Environment Validation
+## Common Troubleshooting
 
-Before launching lab containers, validate host Docker engine health, RAM, disk space, and networking:
-
-**Linux / macOS / WSL2:**
+**Container exits immediately:**
 ```bash
-chmod +x scripts/check-environment.sh
-./scripts/check-environment.sh
+# Check why it stopped
+docker compose logs <service-name>
+docker logs <container-name>
 ```
 
-**Windows PowerShell:**
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-.\scripts\check-environment.ps1
+**Port already in use:**
+```bash
+# Find what is using the port
+netstat -ano | findstr :10080       # Windows
+ss -tlnp | grep 10080               # Linux
+
+# Stop conflicting lab first
+docker compose down
+```
+
+**Cannot connect to MySQL from web container:**
+```bash
+# Enter web container and test connection manually
+docker exec -it www-10.9.0.5 bash
+mysql -h 10.9.0.6 -u root -pdees sqllab_users
+
+# Check MySQL container is running
+docker compose ps
+docker logs mysql-10.9.0.6
+```
+
+**Build fails (Dockerfile error):**
+```bash
+# Run build with verbose output
+docker compose build --no-cache --progress=plain
+```
+
+**Reset everything and start fresh:**
+```bash
+docker compose down -v
+docker system prune
+docker compose up -d --build
 ```
 
 ---
 
-## 7. Official SEED References
+## Official References
 
-- SEED Labs Project: https://seedsecuritylabs.org/
-- SEED 20.04 Web Security Series: https://seedsecuritylabs.org/Labs_20.04/Web/
-- SEED Official GitHub: https://github.com/seed-labs/seed-labs
-- Textbook: *Computer & Internet Security: A Hands-on Approach* (2nd Ed.) by Prof. Wenliang Du
+- SEED Labs Project: https://seedsecuritylabs.org/labs.html
+- SEED Setup Guide: https://seedsecuritylabs.org/labsetup.html
+- SEED GitHub: https://github.com/seed-labs/seed-labs
+- Textbook: *Computer & Internet Security: A Hands-on Approach* — Prof. Wenliang Du
 - Video Lectures: https://www.handsonsecurity.net/video.html
+- Docker Documentation: https://docs.docker.com/

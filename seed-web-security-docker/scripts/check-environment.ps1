@@ -185,11 +185,11 @@ if ($wslCmd) {
 # ── Summary ───────────────────────────────────────────────────────────────────
 Write-Host "`n── Summary ──────────────────────────────────────────────────" -ForegroundColor Cyan
 if ($Errors -eq 0 -and $Warnings -eq 0) {
-    Write-Host "✅  Environment is ready. All checks passed." -ForegroundColor Green
+    Write-Host "[PASS] Environment is ready. All checks passed." -ForegroundColor Green
 } elseif ($Errors -eq 0) {
-    Write-Host "⚠️   Environment ready with $Warnings warning(s). Review above." -ForegroundColor Yellow
+    Write-Host "[WARN] Environment ready with $Warnings warning(s). Review above." -ForegroundColor Yellow
 } else {
-    Write-Host "❌  Environment NOT ready. $Errors error(s) must be fixed." -ForegroundColor Red
+    Write-Host "[FAIL] Environment NOT ready. $Errors error(s) must be fixed." -ForegroundColor Red
     Write-Host "    See docs\01-prerequisites.md for installation instructions." -ForegroundColor Gray
 }
 Write-Host ""

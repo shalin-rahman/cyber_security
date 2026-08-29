@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
-echo "⚠️  This resets Elgg database to original state (all posts/changes lost)."
-read -rp "Proceed? [y/N]: " c; [[ "${c,,}" != "y" ]] && echo "Cancelled." && exit 0
-docker compose down -v && docker compose up -d && echo "✓ XSS lab reset."
+# ==============================================================================
+# Lab 02 — XSS Attack Lab: Reset Script
+# Removes all containers and volumes (wipes injected profile data),
+# then rebuilds images and restores original Elgg database state.
+# ==============================================================================
+echo "[Lab 02] XSS Attack Lab — Reset"
+echo "WARNING: All profile changes (XSS payloads saved in DB) will be wiped."
+read -rp "Type 'yes' to proceed: " confirm
+[[ "$confirm" != "yes" ]] && echo "Cancelled." && exit 0
+docker compose down -v
+docker compose up -d --build
+echo "Lab 02 reset complete. Access: http://localhost:10081"

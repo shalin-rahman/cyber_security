@@ -1,62 +1,243 @@
-# Linux Module 01 — Linux Basics inside Docker Containers
+# Linux Basics Inside Docker Containers
 
-This document teaches fundamental Linux commands specifically within the context of Docker containers in the SEED Web Security Labs.
+Docker containers run an isolated Linux user space. When you enter a container shell, you are interacting with a real Linux environment. This document covers the Linux commands you will use in every lab.
 
 ---
 
-## 1. Entering a Container Environment
-
-To execute Linux commands inside a container, spawn an interactive shell using `docker exec`:
+## 1. Entering a Container
 
 ```bash
-docker exec -it <container_name> bash
-```
+# Open an interactive bash shell inside a running container
+docker exec -it www-10.9.0.5 bash
 
-```
-[ Host System Terminal ]
-           |
-           | docker exec -it www-10.9.0.5 bash
-           v
-+-------------------------------------------------------+
-| Container User-Space Execution Environment            |
-|                                                       |
-| root@www-10.9.0.5:/var/www/html#                     |
-|  - Isolated filesystem (/var/www/html)                |
-|  - Container-specific process table                   |
-|  - Container-specific network interfaces              |
-+-------------------------------------------------------+
+# Your prompt changes to show you are inside the container:
+# root@www-10.9.0.5:/#
+
+# To exit back to your host:
+exit
 ```
 
 ---
 
-## 2. Command Reference: What, Why, and Lab Application
+## 2. Identity and User Context
 
-### Command 1: `pwd`
+```bash
+# Who is this process running as?
+whoami
+# Output: root
 
-- **What it does**: Prints the absolute path of the current working directory.
-- **Why it matters**: Confirms where you are in the filesystem hierarchy before modifying files or executing commands.
-- **SEED Lab Application**: After executing `docker exec -it www-10.9.0.5 bash`, run `pwd` to verify if Apache's web root (`/var/www/html`) is your active directory.
+# Show user ID, group ID, and supplementary groups
+id
+# Output: uid=0(root) gid=0(root) groups=0(root)
 
-### Command 2: `whoami`
+# Note: containers often run as root for simplicity.
+# In production, running as a non-root user is a security best practice.
+```
 
-- **What it does**: Displays the current active user name.
-- **Why it matters**: Verifies user privilege level (e.g., `root` vs unprivileged `www-data`).
-- **SEED Lab Application**: Run `whoami` inside `elgg-10.9.0.5` to verify whether your container shell operates with root permissions.
+---
 
-### Command 3: `id`
+## 3. Hostname and Network Identity
 
-- **What it does**: Displays numeric user ID (`uid`), group ID (`gid`), and group memberships.
-- **Why it matters**: Demonstrates access control boundaries and privilege context.
-- **SEED Lab Application**: Compare `id` output when logged in as root versus when inspecting the process user of Apache (`www-data`).
+```bash
+# Show this container's hostname (set in docker-compose.yml as container_name)
+hostname
+# Output: www-10.9.0.5
 
-### Command 4: `ls -la`
+# Show all network interfaces and IP addresses
+ip addr show
+# Look for eth0 with the container's static IP (e.g., 10.9.0.5/24)
 
-- **What it does**: Lists all files and directories, including hidden files, permissions, owners, and file sizes.
-- **Why it matters**: Reveals application structure, configuration files, and permissions.
-- **SEED Lab Application**: Run inside `mysql-10.9.0.6` database container to view database storage directories and entrypoint scripts.
+# Shorter alias for IP addresses only
+hostname -I
+# Output: 10.9.0.5
 
-### Command 5: `uname -a`
+# Test connectivity to the database container
+ping 10.9.0.6
+```
 
-- **What it does**: Prints system kernel architecture and operating system kernel version.
-- **Why it matters**: Proves that the container shares the host Linux kernel (or WSL2 kernel) rather than running an independent operating system kernel.
-- **SEED Lab Application**: Run `uname -a` on the host machine and inside the container to observe that the kernel version string is identical.
+---
+
+## 4. Filesystem Navigation
+
+```bash
+# Show current working directory
+pwd
+
+# List files in current directory (long format with permissions)
+ls -la
+
+# Navigate to the web application root
+cd /var/www/html
+ls -la
+# You will see: index.php (the vulnerable web application)
+
+# View a file contents
+cat index.php
+
+# View with line numbers
+cat -n index.php
+
+# View large files page by page
+less index.php    # press 'q' to quit
+
+# Search for a string inside a file
+grep "SELECT" index.php
+grep -n "password" index.php    # -n shows line numbers
+
+# Find a file by name
+find / -name "php.ini" 2>/dev/null
+find /etc -name "*.conf"
+```
+
+---
+
+## 5. Process Inspection
+
+```bash
+# Show all running processes in the container
+ps aux
+# Columns: USER, PID, %CPU, %MEM, COMMAND
+# You should see Apache processes: /usr/sbin/apache2 -DFOREGROUND
+
+# Show process tree
+ps aux --forest
+
+# Show processes sorted by memory
+ps aux --sort=-%mem
+
+# Find the PID of a specific process
+pgrep apache2
+pgrep mysql
+```
+
+---
+
+## 6. File Permissions
+
+```bash
+# Interpret permission string from 'ls -la' output:
+# Example: -rw-r--r-- 1 root www-data 4096 Jan 01 index.php
+#           ^           ^    ^
+#           |           |    group owner
+#           |           owner
+#           permission bits (r=read, w=write, x=execute)
+
+# Change file permissions
+chmod 644 /var/www/html/index.php   # Owner: rw, Group: r, Others: r
+chmod 755 /usr/lib/cgi-bin/vul.cgi  # Owner: rwx, Group: rx, Others: rx
+
+# Change file owner
+chown www-data:www-data /var/www/html/index.php
+```
+
+---
+
+## 7. Environment Variables
+
+```bash
+# Show all environment variables
+env
+
+# Key variables to look for in lab containers:
+# MYSQL_HOST=10.9.0.6         (tells web app where MySQL is)
+# MYSQL_ROOT_PASSWORD=dees    (MySQL root password)
+
+# Show a specific environment variable
+echo $MYSQL_HOST
+
+# Set a temporary environment variable (lost when container exits)
+export MY_VAR=hello
+echo $MY_VAR
+```
+
+---
+
+## 8. Logs
+
+```bash
+# Apache access log — every HTTP request that hits the server
+cat /var/log/apache2/access.log
+tail -f /var/log/apache2/access.log    # stream in real time
+
+# Apache error log — PHP errors, connection failures
+cat /var/log/apache2/error.log
+tail -f /var/log/apache2/error.log
+
+# MySQL log (inside mysql container)
+cat /var/log/mysql/error.log
+```
+
+From the host (without entering the container):
+```bash
+# Stream Apache logs from host
+docker exec -it www-10.9.0.5 tail -f /var/log/apache2/access.log
+
+# Use Docker's own logging
+docker logs -f www-10.9.0.5
+docker compose logs -f www
+```
+
+---
+
+## 9. Apache Web Server Commands
+
+```bash
+# Check Apache version
+apache2 -v
+
+# Check Apache configuration syntax
+apache2ctl configtest
+
+# List enabled Apache modules
+apache2ctl -M
+
+# View Apache virtual host configuration
+cat /etc/apache2/sites-enabled/000-default.conf
+
+# Reload Apache configuration (without restarting)
+service apache2 reload
+
+# View what port Apache is listening on
+ss -tlnp | grep apache2
+```
+
+---
+
+## 10. MySQL Client Commands (Inside mysql Container)
+
+```bash
+# Enter MySQL container
+docker exec -it mysql-10.9.0.6 bash
+
+# Connect to MySQL
+mysql -u root -pdees
+
+# Inside MySQL shell:
+SHOW DATABASES;
+USE sqllab_users;
+SHOW TABLES;
+DESCRIBE credential;
+SELECT * FROM credential;
+SELECT Name, Salary FROM credential WHERE Name = 'alice';
+
+# Exit MySQL
+EXIT;
+
+# Exit container
+exit
+```
+
+---
+
+## 11. Disk and System
+
+```bash
+# Check disk space usage
+df -h
+
+# Check directory size
+du -sh /var/www/html
+
+# Check system uptime and load
+uptime
+```

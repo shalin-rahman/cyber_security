@@ -25,7 +25,7 @@ foreach ($lab in $Labs) {
         Write-Host "  Stopping $lab..." -ForegroundColor Gray
         Push-Location (Join-Path $LabsDir $lab)
         docker compose down 2>&1 | Out-Null
-        Write-Host "  ✓ $lab stopped" -ForegroundColor Green
+        Write-Host "  [done] $lab stopped" -ForegroundColor Green
         Pop-Location
     }
 }
@@ -36,7 +36,7 @@ Write-Host "Step 2: Removing SEED lab networks..." -ForegroundColor Yellow
 $seedNetworks = docker network ls --filter "name=net-10.9.0.0" -q 2>&1
 if ($seedNetworks) {
     $seedNetworks | ForEach-Object { docker network rm $_ 2>&1 | Out-Null }
-    Write-Host "  ✓ SEED networks removed" -ForegroundColor Green
+    Write-Host "  [done] SEED networks removed" -ForegroundColor Green
 } else {
     Write-Host "  No SEED networks found" -ForegroundColor Gray
 }
@@ -51,13 +51,13 @@ if ($All) {
         $seedImages = docker image ls --filter "reference=handsonsecurity/*" -q 2>&1
         if ($seedImages) {
             $seedImages | ForEach-Object { docker image rm $_ 2>&1 | Out-Null }
-            Write-Host "  ✓ SEED images removed" -ForegroundColor Green
+            Write-Host "  [done] SEED images removed" -ForegroundColor Green
         } else {
             Write-Host "  No SEED images found" -ForegroundColor Gray
         }
         Write-Host "  Removing build cache..." -ForegroundColor Yellow
         docker builder prune -f 2>&1 | Out-Null
-        Write-Host "  ✓ Build cache cleared" -ForegroundColor Green
+        Write-Host "  [done] Build cache cleared" -ForegroundColor Green
     } else {
         Write-Host "  Skipped image removal." -ForegroundColor Gray
     }

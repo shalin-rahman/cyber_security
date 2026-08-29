@@ -30,7 +30,7 @@ for lab in "${LABS[@]}"; do
   if [[ -f "$LAB_PATH/docker-compose.yml" ]]; then
     echo -e "  Stopping $lab..."
     cd "$LAB_PATH"
-    docker compose down 2>/dev/null && echo -e "  ${GREEN}✓ $lab stopped${RESET}" || echo -e "  (already stopped)"
+    docker compose down 2>/dev/null && echo -e "  ${GREEN}[done] $lab stopped${RESET}" || echo -e "  (already stopped)"
     cd "$SCRIPT_DIR"
   fi
 done
@@ -40,8 +40,8 @@ echo ""
 echo -e "${YELLOW}Step 2: Removing SEED lab networks...${RESET}"
 SEED_NETWORKS=$(docker network ls --filter "name=net-10.9.0.0" -q 2>/dev/null)
 if [[ -n "$SEED_NETWORKS" ]]; then
-  echo "$SEED_NETWORKS" | xargs docker network rm 2>/dev/null && \
-    echo -e "  ${GREEN}✓ SEED networks removed${RESET}" || \
+    echo "$SEED_NETWORKS" | xargs docker network rm 2>/dev/null && \
+    echo -e "  ${GREEN}[done] SEED networks removed${RESET}" || \
     echo -e "  Some networks could not be removed (containers still attached?)"
 else
   echo -e "  No SEED networks found"
@@ -50,19 +50,19 @@ echo ""
 
 # ── Step 3 (optional): Remove images ─────────────────────────────────────────
 if $ALL_MODE; then
-  echo -e "${RED}⚠️  Step 3: Removing SEED Docker images...${RESET}"
+  echo -e "${RED}Step 3: Removing SEED Docker images...${RESET}"
   echo -e "${RED}    WARNING: This will require re-downloading images (~5-10 GB) next time.${RESET}"
   read -rp "    Continue? [y/N]: " confirm
   if [[ "${confirm,,}" == "y" ]]; then
     SEED_IMAGES=$(docker image ls --filter "reference=handsonsecurity/*" -q 2>/dev/null)
     if [[ -n "$SEED_IMAGES" ]]; then
       echo "$SEED_IMAGES" | xargs docker image rm 2>/dev/null && \
-        echo -e "  ${GREEN}✓ SEED images removed${RESET}"
+        echo -e "  ${GREEN}[done] SEED images removed${RESET}"
     else
       echo -e "  No SEED images found"
     fi
     echo -e "${YELLOW}  Removing build cache...${RESET}"
-    docker builder prune -f 2>/dev/null && echo -e "  ${GREEN}✓ Build cache cleared${RESET}"
+    docker builder prune -f 2>/dev/null && echo -e "  ${GREEN}[done] Build cache cleared${RESET}"
   else
     echo -e "  Skipped image removal."
   fi

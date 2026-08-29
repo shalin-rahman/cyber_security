@@ -1,2 +1,5 @@
 #!/usr/bin/env bash
-docker compose down && echo "Clickjacking Lab stopped."
+# Lab 04 — Clickjacking Attack Lab: Stop Script
+echo "[Lab 04] Clickjacking Attack Lab — Stopping containers..."
+docker compose down
+echo "Lab 04 stopped. Run ./start.sh to resume."

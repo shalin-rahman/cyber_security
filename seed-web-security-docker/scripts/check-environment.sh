@@ -172,11 +172,11 @@ echo ""
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo -e "${BOLD}── Summary ──────────────────────────────────────────────────${RESET}"
 if [[ $ERRORS -eq 0 && $WARNINGS -eq 0 ]]; then
-  echo -e "${GREEN}${BOLD}✅  Environment is ready. All checks passed.${RESET}"
+  echo -e "${GREEN}${BOLD}[PASS] Environment is ready. All checks passed.${RESET}"
 elif [[ $ERRORS -eq 0 ]]; then
-  echo -e "${YELLOW}${BOLD}⚠️   Environment ready with $WARNINGS warning(s). Review above.${RESET}"
+  echo -e "${YELLOW}${BOLD}[WARN] Environment ready with $WARNINGS warning(s). Review above.${RESET}"
 else
-  echo -e "${RED}${BOLD}❌  Environment NOT ready. $ERRORS error(s) must be fixed.${RESET}"
+  echo -e "${RED}${BOLD}[FAIL] Environment NOT ready. $ERRORS error(s) must be fixed.${RESET}"
   echo -e "    See docs/01-prerequisites.md for installation instructions."
 fi
 echo ""
