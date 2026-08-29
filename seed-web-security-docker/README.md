@@ -50,9 +50,9 @@ docker system df
 
 ## Labs Quick Start
 
-Each lab is self-contained. Run one at a time.
+Each lab is self-contained. Click any lab link below to open its dedicated lab guide.
 
-### Lab 01 — SQL Injection Attack Lab
+### [Lab 01 — SQL Injection Attack Lab](labs/01-sql-injection/README.md)
 
 ```bash
 cd labs/01-sql-injection
@@ -67,7 +67,7 @@ docker compose ps
 # http://localhost:10080
 ```
 
-### Lab 02 — XSS Attack Lab
+### [Lab 02 — XSS Attack Lab](labs/02-xss/README.md)
 
 ```bash
 cd labs/02-xss
@@ -76,7 +76,7 @@ docker compose ps
 # http://localhost:10081
 ```
 
-### Lab 03 — CSRF Attack Lab
+### [Lab 03 — CSRF Attack Lab](labs/03-csrf/README.md)
 
 ```bash
 cd labs/03-csrf
@@ -86,7 +86,7 @@ docker compose ps
 # Attacker site: http://localhost:10083
 ```
 
-### Lab 04 — Clickjacking Attack Lab
+### [Lab 04 — Clickjacking Attack Lab](labs/04-clickjacking/README.md)
 
 ```bash
 cd labs/04-clickjacking
@@ -96,7 +96,7 @@ docker compose ps
 # Attacker site: http://localhost:10085
 ```
 
-### Lab 05 — Shellshock Vulnerability Lab
+### [Lab 05 — Shellshock Vulnerability Lab](labs/05-shellshock/README.md)
 
 ```bash
 cd labs/05-shellshock
@@ -304,13 +304,13 @@ HOST MACHINE (Windows / Linux / macOS)
 
 | Lab | Container Name | Host Port | Domain | Official Lab Page |
 |-----|---------------|-----------|--------|-------------------|
-| 01 SQL Injection | `www-10.9.0.5` | 10080 | `www.seed-server.com` | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Web_SQL_Injection/) |
-| 02 XSS | `elgg-10.9.0.5` | 10081 | `www.seed-server.com` | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Web_XSS_Elgg/) |
-| 03 CSRF | `elgg-10.9.0.5-csrf` | 10082 | `www.seed-server.com` | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/) |
-| 03 CSRF | `attacker-10.9.0.105` | 10083 | `www.attacker32.com` | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/) |
-| 04 Clickjacking | `cjlab-10.9.0.80` | 10084 | `www.cjlab.com` | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/) |
-| 04 Clickjacking | `cjlab-attacker-10.9.0.81` | 10085 | `www.cjlab-attacker.com` | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/) |
-| 05 Shellshock | `shellshock-10.9.0.80` | 10086 | direct IP only | [Link](https://seedsecuritylabs.org/Labs_20.04/Web/Shellshock/) |
+| 01 SQL Injection | `www-10.9.0.5` | 10080 | `www.seed-server.com` | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_SQL_Injection/) |
+| 02 XSS | `elgg-10.9.0.5` | 10081 | `www.seed-server.com` | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_XSS_Elgg/) |
+| 03 CSRF | `elgg-10.9.0.5-csrf` | 10082 | `www.seed-server.com` | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/) |
+| 03 CSRF | `attacker-10.9.0.105` | 10083 | `www.attacker32.com` | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/) |
+| 04 Clickjacking | `cjlab-10.9.0.80` | 10084 | `www.cjlab.com` | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/) |
+| 04 Clickjacking | `cjlab-attacker-10.9.0.81` | 10085 | `www.cjlab-attacker.com` | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/) |
+| 05 Shellshock | `shellshock-10.9.0.80` | 10086 | direct IP only | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Shellshock/) |
 
 ---
 
@@ -338,41 +338,43 @@ seed-web-security-docker/
 +-- README.md                       This file — start here
 |
 +-- docs/
-|   +-- container-vs-linux-vm.md   Why Docker instead of VM, and limitations
-|   +-- common-workflow.md         Standard 14-step lab workflow
-|   +-- troubleshooting.md         Docker diagnostic commands
-|   +-- lectures-and-references.md Official SEED + OWASP + CVE references
+|   +-- [container-vs-linux-vm.md](docs/container-vs-linux-vm.md)   Why Docker instead of VM, and limitations
+|   +-- [common-workflow.md](docs/common-workflow.md)         Standard 14-step 3-layer lab workflow
+|   +-- [troubleshooting.md](docs/troubleshooting.md)         Docker diagnostic commands
+|   +-- [lectures-and-references.md](docs/lectures-and-references.md) Official SEED + OWASP + CVE references
 |   +-- docker/                    Docker learning modules (01-05)
+|   |   +-- [01-docker-basics.md](docs/docker/01-docker-basics.md)
+|   |   +-- [03-networks.md](docs/docker/03-networks.md)
+|   |   +-- [05-compose.md](docs/docker/05-compose.md)
 |   +-- linux/                     Linux learning modules (01-07)
+|   |   +-- [01-linux-basics-in-containers.md](docs/linux/01-linux-basics-in-containers.md)
 |   +-- platforms/
-|       +-- windows-docker-desktop.md   Windows + WSL2 setup guide
-|       +-- ubuntu-native-docker.md     Ubuntu Linux setup guide
+|       +-- [windows-docker-desktop.md](docs/platforms/windows-docker-desktop.md) Windows + WSL2 setup guide
+|       +-- [ubuntu-native-docker.md](docs/platforms/ubuntu-native-docker.md)     Ubuntu Linux setup guide
 |
 +-- labs/
 |   +-- 01-sql-injection/
-|   |   +-- README.md              Lab tasks, payloads, countermeasures
-|   |   +-- docker-compose.yml     Container definitions
-|   |   +-- image_www/             Web server Dockerfile + PHP source code
-|   |   +-- image_mysql/           MySQL Dockerfile + SQL init script
-|   |   +-- setup.sh / .ps1        Build images and configure hosts file
-|   |   +-- start.sh / .ps1        Start containers
-|   |   +-- stop.sh  / .ps1        Stop containers (preserves data)
-|   |   +-- reset.sh / .ps1        Wipe data and restart from scratch
-|   |
-|   +-- 02-xss/                    (same structure as above)
-|   +-- 03-csrf/                   (includes image_attacker/)
-|   +-- 04-clickjacking/           (includes image_target/ and image_attacker/)
-|   +-- 05-shellshock/             (CGI scripts in image_www/)
+|   |   +-- [README.md](labs/01-sql-injection/README.md)       SQLi Lab Guide
+|   +-- 02-xss/
+|   |   +-- [README.md](labs/02-xss/README.md)                XSS Lab Guide
+|   +-- 03-csrf/
+|   |   +-- [README.md](labs/03-csrf/README.md)               CSRF Lab Guide
+|   +-- 04-clickjacking/
+|   |   +-- [README.md](labs/04-clickjacking/README.md)       Clickjacking Lab Guide
+|   +-- 05-shellshock/
+|       +-- [README.md](labs/05-shellshock/README.md)          Shellshock Lab Guide
 |
 +-- scripts/
-    +-- check-environment.sh/.ps1  Pre-flight Docker environment validator
-    +-- status.sh/.ps1             Show all running lab containers
-    +-- cleanup.sh/.ps1            Remove stopped containers and images
+    +-- [check-environment.ps1](scripts/check-environment.ps1) / [.sh](scripts/check-environment.sh)  Pre-flight validator
+    +-- [status.ps1](scripts/status.ps1) / [.sh](scripts/status.sh)             Show all running lab containers
+    +-- [cleanup.ps1](scripts/cleanup.ps1) / [.sh](scripts/cleanup.sh)            Remove stopped containers and images
 ```
 
 ---
 
 ## Common Troubleshooting
+
+See [`docs/troubleshooting.md`](docs/troubleshooting.md) for full 3-level diagnostic guide.
 
 **Container exits immediately:**
 ```bash

