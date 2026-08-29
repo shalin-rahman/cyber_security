@@ -1,11 +1,16 @@
 # Lab 05 — Shellshock Vulnerability Lab
 
+**Implementation Type**: Official SEED source adapted for Docker
+
 Official lab manual: https://seedsecuritylabs.org/Labs_20.04/Web/Shellshock/
 Textbook: Chapter 3 — Shellshock Attack (*Computer & Internet Security*, 2nd Ed., Prof. Wenliang Du)
 Lecture Sync Sitemap: [SEED Lecture & Reference Sitemap](../../docs/lectures-and-references.md#6-lab-05--shellshock-vulnerability)
 CVE References: [CVE-2014-6271](https://nvd.nist.gov/vuln/detail/CVE-2014-6271), [CVE-2014-7169](https://nvd.nist.gov/vuln/detail/CVE-2014-7169)
 
 For authorized educational use only.
+
+> **HOST BROWSER ROUTING NOTICE**: Access CGI scripts in host clients via `http://localhost:10086/cgi-bin/vul.cgi`. Do not use internal container IP `10.9.0.80` directly in host clients.  
+> **CONTAINER COMMAND FALLBACKS**: If `bash` is missing: `docker exec -it shellshock-10.9.0.80 sh`. If `ip` is missing: `hostname -i`. If `ss` is missing: `netstat -tlnp`.
 
 ---
 

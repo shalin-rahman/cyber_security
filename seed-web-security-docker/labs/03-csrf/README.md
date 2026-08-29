@@ -1,11 +1,16 @@
 # Lab 03 — Cross-Site Request Forgery (CSRF) Attack Lab
 
+**Implementation Type**: Official SEED source adapted for Docker
+
 Official lab manual: https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/
 Textbook: Chapter 10 — Cross-Site Request Forgery (*Computer & Internet Security*, 2nd Ed., Prof. Wenliang Du)
 Lecture Sync Sitemap: [SEED Lecture & Reference Sitemap](../../docs/lectures-and-references.md#4-lab-03--cross-site-request-forgery-csrf)
 CWE Reference: [CWE-352: Cross-Site Request Forgery (CSRF)](https://cwe.mitre.org/data/definitions/352.html)
 
 For authorized educational use only.
+
+> **HOST BROWSER ROUTING NOTICE**: Access Target site in host browsers via `http://localhost:10082` (or `http://www.seed-server.com:10082`) and Attacker site via `http://localhost:10083` (or `http://www.attacker32.com:10083`). Do not use internal container IPs `10.9.0.5` or `10.9.0.105` directly in host browsers.  
+> **CONTAINER COMMAND FALLBACKS**: If `bash` is missing: `docker exec -it elgg-10.9.0.5-csrf sh`. If `ip` is missing: `hostname -i`. If `ss` is missing: `netstat -tlnp`.
 
 ---
 

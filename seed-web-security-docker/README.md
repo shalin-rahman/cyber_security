@@ -181,17 +181,17 @@ docker exec -it mysql-10.9.0.6 bash
 
 ---
 
-## 7. Lab Container Architecture & Port Reference
+## 7. Lab Container Architecture & Validation Reference
 
-| Lab | Container Name | Host Port | Domain | Official Reference |
-|-----|---------------|-----------|--------|--------------------|
-| 01 SQL Injection | `www-10.9.0.5` | 10080 | `www.seed-server.com` | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_SQL_Injection/) |
-| 02 XSS | `elgg-10.9.0.5` | 10081 | `www.seed-server.com` | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_XSS_Elgg/) |
-| 03 CSRF | `elgg-10.9.0.5-csrf` | 10082 | `www.seed-server.com` | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/) |
-| 03 CSRF | `attacker-10.9.0.105` | 10083 | `www.attacker32.com` | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/) |
-| 04 Clickjacking | `cjlab-10.9.0.80` | 10084 | `www.cjlab.com` | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/) |
-| 04 Clickjacking | `cjlab-attacker-10.9.0.81` | 10085 | `www.cjlab-attacker.com` | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/) |
-| 05 Shellshock | `shellshock-10.9.0.80` | 10086 | direct IP only | [Official Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Shellshock/) |
+| Lab | Implementation Type | Container Name | Host Port | Domain | Precise Validation Status |
+|-----|---------------------|---------------|-----------|--------|---------------------------|
+| 01 SQL Injection | Official SEED source adapted for Docker | `www-10.9.0.5` | 10080 | `www.seed-server.com:10080` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
+| 02 XSS | Official SEED source adapted for Docker | `elgg-10.9.0.5` | 10081 | `www.seed-server.com:10081` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
+| 03 CSRF | Official SEED source adapted for Docker | `elgg-10.9.0.5-csrf` | 10082 | `www.seed-server.com:10082` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
+| 03 CSRF | Official SEED source adapted for Docker | `attacker-10.9.0.105` | 10083 | `www.attacker32.com:10083` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
+| 04 Clickjacking | Official SEED source adapted for Docker | `cjlab-10.9.0.80` | 10084 | `www.cjlab.com:10084` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
+| 04 Clickjacking | Official SEED source adapted for Docker | `cjlab-attacker-10.9.0.81` | 10085 | `www.cjlab-attacker.com:10085` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
+| 05 Shellshock | Official SEED source adapted for Docker | `shellshock-10.9.0.80` | 10086 | `localhost:10086/cgi-bin/vul.cgi` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
 
 ---
 

@@ -1,11 +1,16 @@
 # Lab 04 — Clickjacking Attack Lab
 
+**Implementation Type**: Official SEED source adapted for Docker
+
 Official lab manual: https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/
 Textbook: Chapter 13 — Clickjacking Attack (*Computer & Internet Security*, 2nd Ed., Prof. Wenliang Du)
 Lecture Sync Sitemap: [SEED Lecture & Reference Sitemap](../../docs/lectures-and-references.md#5-lab-04--clickjacking-ui-redress)
 CWE Reference: [CWE-1021: Improper Restriction of Rendered UI Layers or Frames](https://cwe.mitre.org/data/definitions/1021.html)
 
 For authorized educational use only.
+
+> **HOST BROWSER ROUTING NOTICE**: Access Target site in host browsers via `http://localhost:10084` (or `http://www.cjlab.com:10084`) and Attacker site via `http://localhost:10085` (or `http://www.cjlab-attacker.com:10085`). Do not use internal container IPs `10.9.0.80` or `10.9.0.81` directly in host browsers.  
+> **CONTAINER COMMAND FALLBACKS**: If `bash` is missing: `docker exec -it cjlab-10.9.0.80 sh`. If `ip` is missing: `hostname -i`. If `ss` is missing: `netstat -tlnp`.
 
 ---
 

@@ -38,17 +38,39 @@ The environment follows a structured 3-Layer Learning Framework:
 
 ---
 
+### Host Browser vs. Docker Internal Network Routing Path
+
+```
+HOST BROWSER (Windows / Linux / macOS)
+    |
+    | Connects to: http://localhost:<port>  OR  http://<domain>:<port> (via 127.0.0.1)
+    v
+HOST NETWORK STACK (127.0.0.1 / localhost)
+    |
+    | Port Forwarding Rule: Host Port (e.g. 10080) -> Container Port (e.g. 80)
+    v
+DOCKER ENGINE / WSL2 VM BRIDGE
+    |
+    | Virtual Bridge Interface: net-10.9.0.0-* (Subnet 10.9.0.0/24)
+    v
+CONTAINER USER SPACE
+    |-- Internal Container IPs (e.g. 10.9.0.5, 10.9.0.6 — container-to-container routing)
+```
+
+> **IMPORTANT HOST ROUTING NOTICE**:  
+> Do **not** map internal container IPs (`10.9.0.5`) directly in your host `/etc/hosts` file when using Docker Desktop on Windows or macOS. Docker Desktop runs inside a lightweight WSL2 / Hyper-V VM where internal container IPs are not directly routable from the host OS adapter. Map `127.0.0.1 <domain>` in host hosts files, then visit `http://<domain>:<published_port>`.
+
+---
+
 ## 2. Global Laboratory Index & Compatibility Matrix
 
-All five security laboratories run independently using Docker Compose.
-
-| Lab Module | Security Topic | Official SEED Reference | Docker Build | Browser / Client | Host Domain Mapping | Compatibility & Status |
-|------------|----------------|-------------------------|--------------|------------------|---------------------|------------------------|
-| [`labs/01-sql-injection`](seed-web-security-docker/labs/01-sql-injection/README.md) | SQL Injection | [SEED SQLi Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_SQL_Injection/) | Local Dockerfiles | Web Browser | `www.seed-server.com` | [Environment Validated](seed-web-security-docker/labs/01-sql-injection/OFFICIAL-COMPATIBILITY.md) |
-| [`labs/02-xss`](seed-web-security-docker/labs/02-xss/README.md) | Cross-Site Scripting | [SEED XSS Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_XSS_Elgg/) | Local Dockerfiles | Web Browser | `www.seed-server.com` | [Environment Validated](seed-web-security-docker/labs/02-xss/OFFICIAL-COMPATIBILITY.md) |
-| [`labs/03-csrf`](seed-web-security-docker/labs/03-csrf/README.md) | Cross-Site Request Forgery | [SEED CSRF Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/) | Local Dockerfiles | Web Browser (Dual Origin) | `www.seed-server.com`<br>`www.attacker32.com` | [Environment Validated](seed-web-security-docker/labs/03-csrf/OFFICIAL-COMPATIBILITY.md) |
-| [`labs/04-clickjacking`](seed-web-security-docker/labs/04-clickjacking/README.md) | Clickjacking UI Redress | [SEED Clickjacking Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/) | Local Dockerfiles | Web Browser + DevTools | `www.cjlab.com`<br>`www.cjlab-attacker.com` | [Environment Validated](seed-web-security-docker/labs/04-clickjacking/OFFICIAL-COMPATIBILITY.md) |
-| [`labs/05-shellshock`](seed-web-security-docker/labs/05-shellshock/README.md) | Shellshock CGI (CVE-2014-6271) | [SEED Shellshock Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Shellshock/) | Local Dockerfiles | `curl.exe` / Web Browser | Direct CGI Endpoint (`:10086`) | [Environment Validated](seed-web-security-docker/labs/05-shellshock/OFFICIAL-COMPATIBILITY.md) |
+| Lab Module | Security Topic | Implementation Type | Official SEED Reference | Host Domain Mapping | Precise Validation Status |
+|------------|----------------|---------------------|-------------------------|---------------------|---------------------------|
+| [`labs/01-sql-injection`](seed-web-security-docker/labs/01-sql-injection/README.md) | SQL Injection | Official SEED source adapted for Docker | [SEED SQLi Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_SQL_Injection/) | `www.seed-server.com:10080` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
+| [`labs/02-xss`](seed-web-security-docker/labs/02-xss/README.md) | Cross-Site Scripting | Official SEED source adapted for Docker | [SEED XSS Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_XSS_Elgg/) | `www.seed-server.com:10081` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
+| [`labs/03-csrf`](seed-web-security-docker/labs/03-csrf/README.md) | Cross-Site Request Forgery | Official SEED source adapted for Docker | [SEED CSRF Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_CSRF_Elgg/) | `www.seed-server.com:10082`<br>`www.attacker32.com:10083` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
+| [`labs/04-clickjacking`](seed-web-security-docker/labs/04-clickjacking/README.md) | Clickjacking UI Redress | Official SEED source adapted for Docker | [SEED Clickjacking Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Web_Clickjacking/) | `www.cjlab.com:10084`<br>`www.cjlab-attacker.com:10085` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
+| [`labs/05-shellshock`](seed-web-security-docker/labs/05-shellshock/README.md) | Shellshock CGI (CVE-2014-6271) | Official SEED source adapted for Docker | [SEED Shellshock Manual](https://seedsecuritylabs.org/Labs_20.04/Web/Shellshock/) | `localhost:10086/cgi-bin/vul.cgi` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
 
 ---
 

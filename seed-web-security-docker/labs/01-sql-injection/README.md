@@ -1,11 +1,16 @@
 # Lab 01 — SQL Injection Attack Lab
 
+**Implementation Type**: Official SEED source adapted for Docker
+
 Official lab manual: https://seedsecuritylabs.org/Labs_20.04/Web/Web_SQL_Injection/
 Textbook: Chapter 12 — SQL Injection Attack (*Computer & Internet Security*, 2nd Ed., Prof. Wenliang Du)
 Lecture Sync Sitemap: [SEED Lecture & Reference Sitemap](../../docs/lectures-and-references.md#2-lab-01--sql-injection-attack)
 CWE Reference: [CWE-89: Improper Neutralization of Special Elements used in an SQL Command](https://cwe.mitre.org/data/definitions/89.html)
 
 For authorized educational use only.
+
+> **HOST BROWSER ROUTING NOTICE**: Access the application in host browsers via `http://localhost:10080` (or `http://www.seed-server.com:10080` if `127.0.0.1 www.seed-server.com` is in your host hosts file). Do not use internal container IP `10.9.0.5` directly in host browsers.  
+> **CONTAINER COMMAND FALLBACKS**: If `bash` is missing: `docker exec -it www-10.9.0.5 sh`. If `ip` is missing: `hostname -i`. If `ss` is missing: `netstat -tlnp`.
 
 ---
 

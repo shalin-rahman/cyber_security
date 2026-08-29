@@ -25,6 +25,27 @@ LAYER 3 — SECURITY (browser + terminal)
 
 The transition between layers is always explicit. You know exactly when you are on the host versus inside a container.
 
+### Host Browser vs. Docker Internal Network Path
+
+```
+HOST BROWSER (Windows / Linux / macOS)
+    |
+    v
+localhost / 127.0.0.1 (or www.seed-server.com -> 127.0.0.1 in hosts)
+    |
+    v
+Docker Published Host Port (e.g. 10080 on host)
+    |
+    v
+Container Target Port (Port 80 inside container)
+    |
+    v
+Internal Docker Bridge Network (10.9.0.5 container IP — internal container-to-container routing)
+```
+
+> **IMPORTANT HOST ROUTING NOTICE**:  
+> Internal container IPs (`10.9.0.5`) are used for container-to-container routing inside the Docker bridge network. For host browsers (especially on Docker Desktop for Windows/macOS), access the application via `http://localhost:<published_port>` or map domain names to `127.0.0.1` in your host `/etc/hosts` file.
+
 ---
 
 ## Layer 1 — Docker Commands (run on your host terminal)

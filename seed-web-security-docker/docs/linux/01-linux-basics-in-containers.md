@@ -10,6 +10,9 @@ Docker containers run an isolated Linux user space. When you enter a container s
 # Open an interactive bash shell inside a running container
 docker exec -it www-10.9.0.5 bash
 
+# If bash is not installed in the container image, fall back to sh:
+docker exec -it www-10.9.0.5 sh
+
 # Your prompt changes to show you are inside the container:
 # root@www-10.9.0.5:/#
 
@@ -241,3 +244,16 @@ du -sh /var/www/html
 # Check system uptime and load
 uptime
 ```
+
+---
+
+## 12. Linux Command Fallbacks in Minimal Containers
+
+Some minimal container images (Alpine, Debian-slim, minimal Ubuntu) may lack default binaries like `bash`, `ip`, `ss`, or `ps`. Use these standard fallbacks:
+
+| Purpose | Primary Command | Fallback Command 1 | Fallback Command 2 |
+|---------|-----------------|--------------------|--------------------|
+| Interactive Shell | `docker exec -it <name> bash` | `docker exec -it <name> sh` | `docker exec -it <name> ash` |
+| Check Container IP | `ip addr show` | `hostname -I` or `hostname -i` | `cat /etc/hosts` or `ifconfig` |
+| Check Listening Ports | `ss -tlnp` | `netstat -tlnp` | `cat /proc/net/tcp` |
+| Inspect Processes | `ps aux` | `ps -ef` | `ls /proc/[0-9]*` |

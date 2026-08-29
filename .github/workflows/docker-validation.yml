@@ -1,4 +1,4 @@
-name: Docker Compose Validation
+name: Automated Docker Validation CI
 
 on:
   push:
@@ -7,17 +7,68 @@ on:
     branches: [ main, master ]
 
 jobs:
-  validate-docker:
+  validate-docker-labs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Validate Docker Compose Syntaxes
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Validate Lab 01 (SQL Injection)
         run: |
-          echo "[PASS] Validating Docker Compose configurations..."
-          for file in seed-web-security-docker/labs/*/docker-compose.yml; do
-            echo "Checking $file..."
-            docker compose -f "$file" config > /dev/null
-          done
-          echo "[PASS] All docker-compose.yml files validated."
+          cd seed-web-security-docker/labs/01-sql-injection
+          docker compose config
+          docker compose build
+          docker compose up -d
+          sleep 10
+          docker compose ps
+          curl -sI http://localhost:10080 | grep -q "200 OK\|302"
+          docker compose down -v
+
+      - name: Validate Lab 02 (XSS)
+        run: |
+          cd seed-web-security-docker/labs/02-xss
+          docker compose config
+          docker compose build
+          docker compose up -d
+          sleep 10
+          docker compose ps
+          curl -sI http://localhost:10081 | grep -q "200 OK\|302"
+          docker compose down -v
+
+      - name: Validate Lab 03 (CSRF)
+        run: |
+          cd seed-web-security-docker/labs/03-csrf
+          docker compose config
+          docker compose build
+          docker compose up -d
+          sleep 10
+          docker compose ps
+          curl -sI http://localhost:10082 | grep -q "200 OK\|302"
+          curl -sI http://localhost:10083 | grep -q "200 OK\|302"
+          docker compose down -v
+
+      - name: Validate Lab 04 (Clickjacking)
+        run: |
+          cd seed-web-security-docker/labs/04-clickjacking
+          docker compose config
+          docker compose build
+          docker compose up -d
+          sleep 5
+          docker compose ps
+          curl -sI http://localhost:10084 | grep -q "200 OK"
+          curl -sI http://localhost:10085 | grep -q "200 OK"
+          docker compose down -v
+
+      - name: Validate Lab 05 (Shellshock)
+        run: |
+          cd seed-web-security-docker/labs/05-shellshock
+          docker compose config
+          docker compose build
+          docker compose up -d
+          sleep 5
+          docker compose ps
+          curl -s http://localhost:10086/cgi-bin/vul.cgi | grep -q "Hello"
+          docker compose down -v
