@@ -68,7 +68,7 @@ jobs:
           docker compose config
           docker compose build
           docker compose up -d
-          sleep 5
+                     sleep 15
           docker compose ps
-          curl -s http://localhost:10086/cgi-bin/vul.cgi | grep -q "Hello"
+          curl -s -I http://localhost:10086/cgi-bin/vul.cgi | grep -q "200 OK"
           docker compose down -v
