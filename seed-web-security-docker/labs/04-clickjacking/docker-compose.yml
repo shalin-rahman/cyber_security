@@ -4,6 +4,7 @@
 
 services:
 
+# Service: target website (victim page for clickjacking)
   target-website:
     build: ./image_target
     image: seed-image-www-clickjacking
@@ -11,11 +12,12 @@ services:
     tty: true
     restart: unless-stopped
     networks:
-      net-10.9.0.0:
-        ipv4_address: 10.9.0.80
+      net-10.23.0.0:
+        ipv4_address: 10.23.0.80
     ports:
       - "10084:80"
 
+# Service: attacker website (malicious page that frames the target)
   attacker-website:
     build: ./image_attacker
     image: seed-image-www-clickjacking-attacker
@@ -23,14 +25,14 @@ services:
     tty: true
     restart: unless-stopped
     networks:
-      net-10.9.0.0:
-        ipv4_address: 10.9.0.81
+      net-10.23.0.0:
+        ipv4_address: 10.23.0.81
     ports:
       - "10085:80"
 
 networks:
-  net-10.9.0.0:
-    name: net-10.9.0.0-clickjacking
+  net-10.23.0.0:
+    name: net-10.23.0.0-clickjacking
     ipam:
       config:
-        - subnet: 10.9.0.0/24
+        - subnet: 10.23.0.0/24

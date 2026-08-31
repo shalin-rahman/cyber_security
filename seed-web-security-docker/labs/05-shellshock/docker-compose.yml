@@ -2,6 +2,7 @@
 # SEED Labs 2.0 — Shellshock Vulnerability Lab
 # ==============================================================================
 
+# Services definition for the Shellshock lab – runs the vulnerable web server container
 services:
 
   www:
@@ -11,14 +12,15 @@ services:
     tty: true
     restart: unless-stopped
     networks:
-      net-10.9.0.0:
-        ipv4_address: 10.9.0.80
+      net-10.24.0.0:
+        ipv4_address: 10.24.0.80
     ports:
       - "10086:80"
 
+# Network block – custom Docker network with its own subnet to avoid IP collisions across labs
 networks:
-  net-10.9.0.0:
-    name: net-10.9.0.0-shellshock
+  net-10.24.0.0:
+    name: net-10.24.0.0-shellshock
     ipam:
       config:
-        - subnet: 10.9.0.0/24
+        - subnet: 10.24.0.0/24
