@@ -56,7 +56,17 @@ if ($conn->connect_error) {
             $username = $_POST['username'];
             $password = $_POST['password'];
 
-            // Vulnerable Query Construction (Raw String Concatenation)
+            // =========================================================================
+            // VULNERABILITY: Raw String Concatenation (SQL Injection)
+            // =========================================================================
+            // DEFINITION: SQL Injection occurs when untrusted user input is directly
+            // appended into a database query string. The database engine cannot distinguish
+            // between the intended query logic and the attacker's payload.
+            //
+            // EXAMPLE: If username is "admin'#"
+            // The query becomes: SELECT * FROM credential WHERE Name='admin'#' AND Password='...'
+            // The '#' comments out the password check, bypassing authentication entirely.
+            // =========================================================================
             $sql = "SELECT * FROM credential WHERE Name='$username' AND Password='$password'";
             echo "<p><strong>Executed SQL Query:</strong> <code>" . htmlspecialchars($sql) . "</code></p>";
 
@@ -153,7 +163,16 @@ if ($conn->connect_error) {
         if (isset($_GET['safe_name'])) {
             $name = $_GET['safe_name'];
 
-            // Secure Parameterized Query
+            // =========================================================================
+            // FIX: Parameterized Queries (Prepared Statements)
+            // =========================================================================
+            // DEFINITION: Prepared statements separate the SQL code structure from the
+            // user-provided data. The query is pre-compiled by the database engine FIRST,
+            // and then the user input is inserted strictly as literal values.
+            //
+            // RESULT: If name is "admin'#", the database looks for a user whose literal
+            // name is exactly "admin'#", rather than executing it as SQL syntax.
+            // =========================================================================
             $stmt = $conn->prepare("SELECT ID, Name, EID, Salary, SSN, Email FROM credential WHERE Name=?");
             $stmt->bind_param("s", $name);
             $stmt->execute();

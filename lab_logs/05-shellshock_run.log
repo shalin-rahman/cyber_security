@@ -1,0 +1,23 @@
+* Host localhost:10086 was resolved.
+* IPv6: ::1
+* IPv4: 127.0.0.1
+*   Trying [::1]:10086...
+* Connected to localhost (::1) port 10086
+> GET /cgi-bin/vul.cgi HTTP/1.1
+> Host: localhost:10086
+> User-Agent: curl/8.5.0
+> Accept: */*
+> 
+< HTTP/1.1 200 OK
+< Date: Mon, 31 Aug 2026 19:37:30 GMT
+< Server: Apache/2.4.41 (Ubuntu)
+< Vary: Accept-Encoding
+< Transfer-Encoding: chunked
+< Content-Type: text/plain
+< 
+{ [90 bytes data]
+* Connection #0 to host localhost left intact
+SEED Shellshock Vulnerable CGI Endpoint (vul.cgi)
+Environment variable evaluation active.
+SEED Shellshock Vulnerable CGI Endpoint (vul.cgi)
+Environment variable evaluation active.

@@ -2,25 +2,23 @@
 * IPv6: ::1
 * IPv4: 127.0.0.1
 *   Trying [::1]:10081...
-* Established connection to localhost (::1 port 10081) from ::1 port 59819 
-* using HTTP/1.x
-> GET / HTTP/1.1
-> Host: localhost:10081
-> User-Agent: curl/8.19.0
-> Accept: */*
-> 
-* Request completely sent off
-< HTTP/1.1 200 OK
-< Date: Mon, 31 Aug 2026 09:54:26 GMT
-< Server: Apache/2.4.41 (Ubuntu)
-< Last-Modified: Thu, 26 Nov 2020 16:29:28 GMT
-< ETag: "2aa6-5b5050c37ca00"
-< Accept-Ranges: bytes
-< Content-Length: 10918
-< Vary: Accept-Encoding
-< Content-Type: text/html
-< 
-{ [3833 bytes data]
+* Connected to localhost (::1) port 10081
+> GET / HTTP/1.1
+> Host: localhost:10081
+> User-Agent: curl/8.5.0
+> Accept: */*
+> 
+< HTTP/1.1 200 OK
+< Date: Mon, 31 Aug 2026 19:36:41 GMT
+< Server: Apache/2.4.41 (Ubuntu)
+< Last-Modified: Thu, 26 Nov 2020 16:29:28 GMT
+< ETag: "2aa6-5b5050c37ca00"
+< Accept-Ranges: bytes
+< Content-Length: 10918
+< Vary: Accept-Encoding
+< Content-Type: text/html
+< 
+{ [10918 bytes data]
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -327,8 +325,7 @@
                                 a2dismod,
                            </tt>
                            <tt>
-                                a2ensit* Connection #0 to host localhost:10081 left intact
-e,
+                                a2ensite,
                                 a2dissite,
                             </tt>
                                 and
@@ -383,7 +380,8 @@ e,
           </p>
           <p>
                 Please report bugs specific to modules (such as PHP and others)
-                to respective packages, not to the web server itself.
+                to r* Connection #0 to host localhost left intact
+espective packages, not to the web server itself.
           </p>
         </div>
 

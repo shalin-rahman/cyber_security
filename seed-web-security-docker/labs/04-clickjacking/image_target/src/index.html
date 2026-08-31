@@ -5,18 +5,75 @@
     <title>www.cjlab.com — Target Account Portal</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; background: #f0f4f8; }
-        .card { max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
-        .danger-button { background: #e74c3c; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 5px; cursor: pointer; }
+        .card { max-width: 600px; margin: auto; background: white; padding: 30px;
+                border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
+        .danger-button { background: #e74c3c; color: white; border: none; padding: 15px 30px;
+                         font-size: 16px; border-radius: 5px; cursor: pointer; }
+        .info { font-size: 13px; color: #666; margin-top: 20px; text-align: left; }
+        code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-size: 12px; }
     </style>
+
+    <!--
+    ╔══════════════════════════════════════════════════════════╗
+    ║  CLICKJACKING — DEFENCE CONFIGURATIONS                  ║
+    ║                                                          ║
+    ║  Task 1 (VULNERABLE): No header set — iframe allowed.   ║
+    ║    → Attacker page loads this in invisible iframe.       ║
+    ║    → Victim clicks "Claim Gift" but really clicks here.  ║
+    ║                                                          ║
+    ║  Task 2 (X-Frame-Options): Add to Apache / PHP:          ║
+    ║    header('X-Frame-Options: DENY');                      ║
+    ║    Browser refuses to render this page inside an iframe. ║
+    ║                                                          ║
+    ║  Task 3 (Frame-Busting JS): JS escape technique:         ║
+    ║    if (top !== self) { top.location = self.location; }   ║
+    ║    Redirects attacker frame back to this page.           ║
+    ║    (Bypassable via sandbox attribute on iframe)           ║
+    ║                                                          ║
+    ║  Task 4 (CSP frame-ancestors): Modern, strongest fix:    ║
+    ║    Content-Security-Policy: frame-ancestors 'none';      ║
+    ║    Cannot be bypassed by sandbox attribute.              ║
+    ╚══════════════════════════════════════════════════════════╝
+
+    CURRENT STATE: Task 1 — VULNERABLE (no X-Frame-Options, no CSP).
+    To test Task 2: uncomment the PHP header below (via server config).
+    To test Task 4: add CSP header via Apache or PHP.
+    -->
+
+    <!--
+    Task 3 — Frame-Busting JS (uncomment to enable):
+    <script>
+        if (top !== self) {
+            top.location = self.location;
+        }
+    </script>
+    -->
 </head>
 <body>
 <div class="card">
     <h1>Target Account Portal (www.cjlab.com)</h1>
-    <p>Account Settings & Actions</p>
+    <p>Account Settings &amp; Actions</p>
     <br><br>
+
     <form method="POST" action="">
-        <button type="submit" class="danger-button" onclick="alert('Target Account Deleted!')">Delete My Account Permanently</button>
+        <!--
+        Task 1: This button is the REAL dangerous action.
+        The attacker overlays their page on top and tricks the user
+        into clicking here while they think they're clicking a prize button.
+        -->
+        <button type="submit" class="danger-button"
+                onclick="alert('⚠️ [Task 1] Delete Account button clicked! This is the Clickjacking victim action.')">
+            Delete My Account Permanently
+        </button>
     </form>
+
+    <div class="info">
+        <strong>Task Guide:</strong><br>
+        <strong>Task 1:</strong> Visit the <a href="http://localhost:10085">attacker page (port 10085)</a> — click the "Prize" button — observe this page fires.<br>
+        <strong>Task 2:</strong> Add <code>X-Frame-Options: DENY</code> header to this server → browser refuses to embed it.<br>
+        <strong>Task 3:</strong> Uncomment the frame-busting JS above → iframe redirects to this page.<br>
+        <strong>Task 4:</strong> Add <code>Content-Security-Policy: frame-ancestors 'none'</code> → strongest defence, CSP-compliant.<br>
+    </div>
 </div>
 </body>
 </html>
