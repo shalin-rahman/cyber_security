@@ -30,11 +30,11 @@ LAYER 3 — WEB SECURITY
 
 Run one vulnerable lab environment at a time unless testing multi-lab scenarios.
 
-| Profile | CPU Cores | Total System RAM | Free Disk Space | Scope |
-|---------|-----------|------------------|-----------------|-------|
-| **Minimum** | 4 Logical Cores | 8 GB RAM | 20 GB Disk Space | Running 1 lab container set at a time |
-| **Recommended** | 6–8 Cores | 16 GB RAM | 40 GB Disk Space | Active lab + VS Code + browser DevTools |
-| **Advanced** | 8+ Cores | 32 GB RAM | 60+ GB SSD | Multiple lab instances + custom security tools |
+| Profile               | CPU Cores       | Total System RAM | Free Disk Space  | Scope                                          |
+| --------------------- | --------------- | ---------------- | ---------------- | ---------------------------------------------- |
+| **Minimum**     | 4 Logical Cores | 8 GB RAM         | 20 GB Disk Space | Running 1 lab container set at a time          |
+| **Recommended** | 6–8 Cores      | 16 GB RAM        | 40 GB Disk Space | Active lab + VS Code + browser DevTools        |
+| **Advanced**    | 8+ Cores        | 32 GB RAM        | 60+ GB SSD       | Multiple lab instances + custom security tools |
 
 ---
 
@@ -43,12 +43,14 @@ Run one vulnerable lab environment at a time unless testing multi-lab scenarios.
 Before running containers, verify host Docker health, port availability, disk space, and memory allocation:
 
 **Windows PowerShell:**
+
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 .\scripts\doctor.ps1
 ```
 
 **Linux / WSL2 Bash:**
+
 ```bash
 chmod +x scripts/doctor.sh
 ./scripts/doctor.sh
@@ -183,15 +185,15 @@ docker exec -it mysql-10.9.0.6 bash
 
 ## 7. Lab Container Architecture & Validation Reference
 
-| Lab | Implementation Type | Container Name | Host Port | Domain | Precise Validation Status |
-|-----|---------------------|---------------|-----------|--------|---------------------------|
-| 01 SQL Injection | Official SEED source adapted for Docker | `www-10.9.0.5` | 10080 | `www.seed-server.com:10080` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
-| 02 XSS | Official SEED source adapted for Docker | `elgg-10.9.0.5` | 10081 | `www.seed-server.com:10081` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
-| 03 CSRF | Official SEED source adapted for Docker | `elgg-10.9.0.5-csrf` | 10082 | `www.seed-server.com:10082` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
-| 03 CSRF | Official SEED source adapted for Docker | `attacker-10.9.0.105` | 10083 | `www.attacker32.com:10083` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
-| 04 Clickjacking | Official SEED source adapted for Docker | `cjlab-10.9.0.80` | 10084 | `www.cjlab.com:10084` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
-| 04 Clickjacking | Official SEED source adapted for Docker | `cjlab-attacker-10.9.0.81` | 10085 | `www.cjlab-attacker.com:10085` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
-| 05 Shellshock | Official SEED source adapted for Docker | `shellshock-10.9.0.80` | 10086 | `localhost:10086/cgi-bin/vul.cgi` | `TASK-TESTED`<br>`BUILD-VALIDATED` |
+| Lab              | Implementation Type                     | Container Name               | Host Port | Domain                              | Precise Validation Status      |
+| ---------------- | --------------------------------------- | ---------------------------- | --------- | ----------------------------------- | ------------------------------ |
+| 01 SQL Injection | Official SEED source adapted for Docker | `www-10.9.0.5`             | 10080     | `www.seed-server.com:10080`       | `TASK-TESTEDBUILD-VALIDATED` |
+| 02 XSS           | Official SEED source adapted for Docker | `elgg-10.9.0.5`            | 10081     | `www.seed-server.com:10081`       | `TASK-TESTEDBUILD-VALIDATED` |
+| 03 CSRF          | Official SEED source adapted for Docker | `elgg-10.9.0.5-csrf`       | 10082     | `www.seed-server.com:10082`       | `TASK-TESTEDBUILD-VALIDATED` |
+| 03 CSRF          | Official SEED source adapted for Docker | `attacker-10.9.0.105`      | 10083     | `www.attacker32.com:10083`        | `TASK-TESTEDBUILD-VALIDATED` |
+| 04 Clickjacking  | Official SEED source adapted for Docker | `cjlab-10.9.0.80`          | 10084     | `www.cjlab.com:10084`             | `TASK-TESTEDBUILD-VALIDATED` |
+| 04 Clickjacking  | Official SEED source adapted for Docker | `cjlab-attacker-10.9.0.81` | 10085     | `www.cjlab-attacker.com:10085`    | `TASK-TESTEDBUILD-VALIDATED` |
+| 05 Shellshock    | Official SEED source adapted for Docker | `shellshock-10.9.0.80`     | 10086     | `localhost:10086/cgi-bin/vul.cgi` | `TASK-TESTEDBUILD-VALIDATED` |
 
 ---
 
@@ -257,7 +259,7 @@ See [`docs/troubleshooting.md`](docs/troubleshooting.md) for full 3-level diagno
 
 ## 11. Official References
 
-- Official SEED Lecture Sync: [SEED Lecture & Reference Sitemap](docs/lectures-and-references.md)
+- Official SEED Lecture Sync: [SEED Lecture &amp; Reference Sitemap](docs/lectures-and-references.md)
 - SEED Security Labs Project: https://seedsecuritylabs.org/labs.html
 - SEED Setup Guide: https://seedsecuritylabs.org/labsetup.html
 - SEED GitHub: https://github.com/seed-labs/seed-labs
