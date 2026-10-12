@@ -14,24 +14,57 @@ For authorized educational use only.
 
 ---
 
-## Security Concept
+---
 
-Clickjacking (also known as UI Redress Attack) tricks a user into clicking a button or link on a legitimate website by overlaying a transparent iframe on top of a decoy page. The user thinks they are clicking the attacker's harmless button but actually clicks the target site's dangerous button underneath.
+## 📖 The Clickjacking Story: The Transparent Decoy
 
+### Act 1 — The Decoy Prize Page
+* The attacker creates a flashy gaming/promotional website hosted at **`http://localhost:10085`** (`www.cjlab-attacker.com:10085`) displaying:
+  `"🎉 CONGRATULATIONS! CLICK HERE TO CLAIM YOUR FREE PRIZE! 🎁"`
+* The user believes they are clicking a harmless prize button.
+
+### Act 2 — The Hidden Target (UI Redress)
+* Stacked directly on top of the prize button is a transparent `<iframe>` (`opacity: 0.0001`, `z-index: 100`) loading the legitimate account management site at **`http://localhost:10084`** (`www.cjlab.com:10084`).
+* Underneath the cursor, aligned with pixel precision, is the target site's dangerous action button: `"DELETE MY ACCOUNT"` or `"TRANSFER FUNDS"`.
+
+### Act 3 — The Silent Strike
+* When the user clicks the visible prize button, the browser registers the click on the top-most (invisible) iframe layer.
+* The dangerous account action executes with the user's active session!
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Victim as 👤 Victim (Logged in)
+    participant Attacker as 💀 www.cjlab-attacker.com:10085 (Decoy)
+    participant Target as 🎯 www.cjlab.com:10084 (Target Portal)
+
+    Victim->>Attacker: 1. Opens prize page
+    Attacker-->>Victim: 2. Loads decoy button + transparent iframe of Target site
+    Note over Victim: Victim clicks visible "CLAIM PRIZE" button
+    Victim->>Target: 3. Click lands on invisible iframe button ("Delete Account")!
+    Target-->>Victim: 4. Account deleted without user knowing!
 ```
-What Alice sees:                      What is actually rendered:
-+----------------------------------+  +----------------------------------+
-|                                  |  |  Attacker Page (visible)         |
-|   WIN A FREE IPHONE!             |  |  [CLAIM YOUR FREE GIFT!] button  |
-|                                  |  |                                  |
-|   [CLAIM YOUR FREE GIFT!]        |  |  Target Page (transparent iframe)|
-|                                  |  |  [Delete My Account] <- ACTUAL   |
-+----------------------------------+  +----------------------------------+
 
-Alice clicks "CLAIM YOUR FREE GIFT!" but actually clicks "Delete My Account"
-```
+---
 
-Key mechanism: The `<iframe>` is set to `opacity: 0` (invisible) and positioned precisely so the dangerous button aligns with the decoy button.
+## 🧪 Official Lab Tasks Walkthrough
+
+### Task 1 — Basic Clickjacking Attack (Overlay Alignment)
+* Align the transparent target iframe over the decoy button using CSS absolute positioning (`top`, `left`, `opacity`, `z-index`).
+
+### Task 2 — Clickjacking with Parameter Passing
+* Trick the user into clicking multiple sequential buttons (e.g. typing or clicking confirmation dialogues).
+
+### Task 3 — Frame Busting Limitations
+* Analyze legacy JavaScript frame-busting scripts (`if (top !== self) top.location = self.location;`) and observe how HTML5 iframe `sandbox` attributes defeat them.
+
+### Task 4 — Modern Defense: HTTP Response Headers
+* Configure Apache/PHP to send anti-framing headers:
+  ```http
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'self'
+  ```
+* When these headers are present, modern browsers refuse to render the page inside third-party iframes, completely blocking Clickjacking.
 
 ---
 

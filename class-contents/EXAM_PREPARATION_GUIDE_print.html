@@ -1,0 +1,1425 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Web Security Study Guide</title>
+<style>
+@page { size: A4; margin: 0.5in; }
+:root { --ink:#111; --muted:#555; --rule:#bbb; --code-bg:#f3f3f3; --head-bg:#e9e9e9; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; background: #fff; color: var(--ink);
+       font: 8.6pt/1.3 "Segoe UI", Calibri, Arial, sans-serif; }
+h1 { font-size: 14pt; margin: 0 0 3pt; }
+h2 { font-size: 11pt; margin: 8pt 0 3pt; padding-bottom: 1pt; border-bottom: 1.2pt solid var(--ink);
+     break-after: avoid; }
+h3 { font-size: 9.4pt; margin: 6pt 0 2pt; break-after: avoid; }
+p { margin: 2pt 0 3pt; }
+p:has(+ pre), p:has(+ table), p:has(+ ul), p:has(+ ol) { break-after: avoid; }
+ul, ol { margin: 1pt 0 3pt; padding-left: 14pt; }
+li { margin: 0.5pt 0; }
+li > ul, li > ol { margin: 0.5pt 0; }
+hr { display: none; }
+code { font: 7.8pt Consolas, "Courier New", monospace; background: var(--code-bg); padding: 0 1.5pt; border-radius: 2pt; }
+pre { font: 7pt/1.18 Consolas, "Courier New", monospace; background: var(--code-bg);
+      border-left: 2pt solid var(--rule); padding: 3pt 5pt; margin: 3pt 0;
+      white-space: pre; overflow: hidden; break-inside: avoid; }
+pre code { background: none; padding: 0; font: inherit; }
+table { border-collapse: collapse; width: 100%; margin: 3pt 0 4pt; font-size: 7.8pt; break-inside: auto; }
+tr { break-inside: avoid; }
+th, td { border: 0.5pt solid var(--rule); padding: 1.5pt 3pt; text-align: left; vertical-align: top; }
+th { background: var(--head-bg); }
+strong { font-weight: 650; }
+</style></head>
+<body><h1>Web Security Study Guide (W01–W05)</h1>
+<p>Topics: Web Security Basics (W01), CSRF (W02), XSS (W03), SQL Injection (W04), Clickjacking (W05).</p>
+<p>One idea links all five topics: <strong>something is trusted when it should not be.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>What is wrongly trusted</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CSRF</td>
+<td>A request that carries my cookie must come from me</td>
+</tr>
+<tr>
+<td>XSS</td>
+<td>Text from a user is only data, so it is safe to put in a page</td>
+</tr>
+<tr>
+<td>SQLi</td>
+<td>Text from a user is only data, so it is safe to put in a query</td>
+</tr>
+<tr>
+<td>Clickjacking</td>
+<td>What I see on screen is what I am clicking</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>1. Web Security Basics (W01)</h2>
+<h3>1.1 HTTP messages and state</h3>
+<p><strong>HTTP is stateless at the protocol level.</strong> Each request stands alone, and the protocol has no memory of earlier ones: "Web server is stateless".</p>
+<p><strong>Applications add state on top.</strong> The server keeps session data. The browser keeps a cookie that holds the session ID and sends it back with each request: session data is typically kept on the server. The session starts after login. The ID is a random number, and whoever has the ID has access.</p>
+<p>How a message is laid out:</p>
+<pre><code>REQUEST                                          RESPONSE
++------------------------------------------+    +---------------------------------------------+
+| POST /post_form.php HTTP/1.1  &lt;- request |    | HTTP/1.1 200 OK               &lt;- status line|
+|                                   line   |    |                                             |
+| Host: www.example.com         &lt;- headers |    | Content-Type: text/html       &lt;- headers    |
+| Cookie: SID=xsdfgergbghedvrbeadv         |    | Set-Cookie: cookieA=aaaaaa                  |
+| Content-Length: 19                       |    | Set-Cookie: cookieB=bbbbbb; expires=...;    |
+|                               &lt;- blank   |    |             Max-Age=3600                    |
+|                                  line    |    |                               &lt;- blank line |
+| foo=hello&amp;bar=world           &lt;- body    |    | &lt;h2&gt;Cookies are set&lt;/h2&gt;      &lt;- body       |
++------------------------------------------+    +---------------------------------------------+
+GET puts the data in the URL instead:  GET /post_form.php?foo=hello&amp;bar=world HTTP/1.1
+</code></pre>
+<ul>
+<li>GET and POST differ mainly in how they send data to the server: GET in the URL, POST in the body.</li>
+<li>The status line gives the result: <code>200 OK</code> on success, <code>404 Not Found</code> when the page does not exist.</li>
+<li><code>Set-Cookie</code> goes from server to browser. PHP <code>setcookie()</code> produces it.</li>
+<li><code>Cookie</code> goes from browser to server. The browser attaches all the cookies that belong to the target server, on every later request to it.</li>
+<li>A cookie with no expiry is a session cookie and is lost when the browser closes. A cookie with <code>expires</code> or <code>Max-Age</code> persists.</li>
+</ul>
+<pre><code>Browser                                   Server
+  | --- POST /login (user, password) ----&gt;  |
+  | &lt;--- 200 OK, Set-Cookie: sid=...        |   server stores: sid -&gt; alice
+  | --- GET /inbox, Cookie: sid=...  ----&gt;  |   &quot;this sid is Alice&quot;
+  | &lt;--- Alice's inbox                      |
+</code></pre>
+<h3>1.2 First-party and third-party cookies</h3>
+<p>What the slides say:</p>
+<ul>
+<li>The lecture shows tracking with a 1x1 image from an ad network.</li>
+<li>The lecture says first-party cookies are needed for sites to work, and third-party cookies are used for ads and tracking.</li>
+<li>The lecture names two privacy tools: anonymous (private) mode and blocking third-party cookies.</li>
+</ul>
+<p>The definitions below are:</p>
+<ul>
+<li><strong>Top-level site:</strong> the site shown in the address bar.</li>
+<li><strong>First-party cookie:</strong> a cookie that belongs to the top-level site.</li>
+<li><strong>Third-party cookie:</strong> a cookie that belongs to another site, sent when the page loads a resource from that site (image, script, iframe). An ad network's cookie arrives with its 1x1 image on many sites. That lets it link your visits together.</li>
+<li>The same cookie can be first-party on one visit and third-party on another. It depends on which site is at the top.</li>
+</ul>
+<p><strong>Same-site is not the same as same-origin:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th>Same origin?</th>
+<th>Same site?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>https://a.example.com</code> and <code>https://a.example.com:443/x</code></td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>https://a.example.com</code> and <code>https://b.example.com</code></td>
+<td>No (host)</td>
+<td>Yes (same registrable domain <code>example.com</code>)</td>
+</tr>
+<tr>
+<td><code>https://example.com</code> and <code>https://example.org</code></td>
+<td>No</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p>SameSite cookie rules and CSRF use <strong>site</strong>. SOP uses <strong>origin</strong>. The lecture defines a same-site request as one from a page of the site itself, and a cross-site request as one from a page of another site.</p>
+<h3>1.3 Cookie flags</h3>
+<p>Each flag deals with a different threat. They do not replace each other, and none is complete on its own.</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Threat it deals with</th>
+<th>What it does</th>
+<th>What it does not do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HttpOnly</code></td>
+<td>Cookie theft by injected script</td>
+<td>Script cannot read the cookie through <code>document.cookie</code></td>
+<td>Does not stop the browser sending it. Does not stop CSRF. Does not stop injected script from making requests that carry it</td>
+</tr>
+<tr>
+<td><code>Secure</code></td>
+<td>Sniffing on the network</td>
+<td>Sent only over HTTPS</td>
+<td>Does not hide the cookie from script. Does not stop CSRF</td>
+</tr>
+<tr>
+<td><code>SameSite=Strict</code></td>
+<td>CSRF</td>
+<td>Not sent on any cross-site request</td>
+<td>Even a link click from another site arrives without it, so the user looks logged out</td>
+</tr>
+<tr>
+<td><code>SameSite=Lax</code></td>
+<td>CSRF</td>
+<td>Sent on cross-site top-level GET navigation (a link click). Not sent on cross-site POST, img, iframe or Ajax</td>
+<td>Does not protect a state-changing GET behind a link</td>
+</tr>
+<tr>
+<td><code>SameSite=None</code></td>
+<td>—</td>
+<td>Sent on all requests (needs <code>Secure</code>)</td>
+<td>No CSRF protection</td>
+</tr>
+</tbody>
+</table>
+<p>The slides name SameSite as a CSRF defence. The full Strict/Lax/None rules are. See 2.6 for how the slide simplifies Lax.</p>
+<h3>1.4 Same-Origin Policy (SOP) and CORS</h3>
+<p><strong>Origin = scheme + host + port.</strong> All three must match.</p>
+<table>
+<thead>
+<tr>
+<th>Page compared with <code>http://a.com/x</code></th>
+<th>Same origin?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>http://a.com/y</code></td>
+<td>Yes (path is not part of origin)</td>
+</tr>
+<tr>
+<td><code>https://a.com/x</code></td>
+<td>No (scheme)</td>
+</tr>
+<tr>
+<td><code>http://b.a.com/x</code></td>
+<td>No (host)</td>
+</tr>
+<tr>
+<td><code>http://a.com:8080/x</code></td>
+<td>No (port)</td>
+</tr>
+</tbody>
+</table>
+<p>What SOP does to Ajax:</p>
+<ul>
+<li>Ajax means Asynchronous JavaScript and XML. The slide code uses <code>XMLHttpRequest</code>. Ajax is slowly being replaced by the Fetch API.</li>
+<li>The demo uses two sites, <code>www.bank32.com</code> and <code>www.bank99.com</code>. One slide title describes a bank32 page reaching bank99. The packet capture shows the reverse case: a page on bank99 (<code>ajax.html</code>) sends an Ajax GET to <code>www.bank32.com/getdata.php</code>. The rule is the same either way.</li>
+<li>The capture shows the request goes out, with an <code>Origin: http://www.bank99.com</code> header, and the server answers <code>200 OK</code> with "Data from Bank32!".</li>
+<li>The browser then refuses to give the response to the script. The console shows "Cross-Origin Request Blocked … CORS header 'Access-Control-Allow-Origin' missing".</li>
+<li>The reason is privacy. Ajax code in a Facebook page may read the user's Facebook data, but not the user's Google data.</li>
+</ul>
+<p>So: <strong>a page can send a cross-origin request, but its script cannot read the response.</strong> This is the key fact behind CSRF. The attacker can send but cannot read.</p>
+<p><strong>CORS (Cross-Origin Resource Sharing)</strong> relaxes this, because SOP is sometimes too strict. The server gives the browser a list of origins it trusts. In the slide, the PHP page on <code>www.bank99.com</code> sends <code>header("Access-Control-Allow-Origin: http://www.bank32.com")</code> with its reply ("Time from Bank99"). Pages from bank32 can then read bank99's response; pages from other origins still cannot.</p>
+<p><strong>The JavaScript sandbox</strong>. Script from a web page runs inside a sandbox in the browser. The lecture lists what must be protected: page data, the local file system, and the network. Each has its own rule:</p>
+<ul>
+<li><strong>Page data and DOM</strong>: script can read and change its own page through the DOM.</li>
+<li><strong>File system</strong>: script cannot read local files directly. The user grants access by picking a file in a file chooser, and the script then gets a handle to that file only.</li>
+<li><strong>Network</strong>: normal HTTP, Ajax and WebSocket each have a different policy (SOP above, WebSocket in 1.5).</li>
+</ul>
+<h3>1.5 Ajax vs WebSocket</h3>
+<p>The lecture lists three ways a page talks to a server: normal HTTP requests, Ajax and WebSocket. Each has its own policy.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Ajax (XMLHttpRequest, now often Fetch)</th>
+<th>WebSocket</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Protocol</td>
+<td>HTTP</td>
+<td>Starts as an HTTP request, then upgrades to a long-lived connection</td>
+</tr>
+<tr>
+<td>Direction</td>
+<td>Half-duplex: the browser asks, the server answers. The server cannot push data on its own</td>
+<td>Full-duplex: either side sends at any time, with no request needed</td>
+</tr>
+<tr>
+<td>Cross-origin connection</td>
+<td>Request is sent</td>
+<td><strong>Connection attempt is allowed</strong></td>
+</tr>
+<tr>
+<td>Cross-origin data</td>
+<td>Browser blocks reading unless CORS allows it</td>
+<td><strong>Browser does not restrict the data</strong></td>
+</tr>
+<tr>
+<td>Who enforces access</td>
+<td>The client side: the browser, using the server's CORS list</td>
+<td><strong>Only the server</strong>, by checking the <code>Origin</code> header in the handshake</td>
+</tr>
+</tbody>
+</table>
+<p>How the WebSocket handshake works:</p>
+<ol>
+<li>The page opens <code>ws://</code> or <code>wss://</code> to any host.</li>
+<li>The browser sends an HTTP GET with <code>Upgrade: websocket</code> and an <code>Origin</code> header naming the page's origin. Script cannot fake this header.</li>
+<li>The browser also attaches that host's cookies.</li>
+<li>If the server accepts, both sides can send messages, and the page reads replies freely.</li>
+</ol>
+<p>If the server does not check <code>Origin</code>, any web page you visit can talk to it as you. That includes servers on your home network, which are normally out of reach.</p>
+<p><strong>Cable Haunt (January 2020)</strong>:</p>
+<pre><code>  Internet                          |   Home network (LAN)
+                                    |
+ [Attacker web page] ---- loads ---&gt; [Victim browser]
+   script inside it                 |      |
+                                    |      | 1. script opens WebSocket to the modem's LAN address
+                                    |      |    (browser allows the connection; no SOP block)
+                                    |      v
+                                    |  [Broadcom-based cable modem]
+                                    |   WebSocket server, did not check Origin
+                                    |      | 2. crafted message overflows a buffer
+                                    |      v
+                                    |   attacker code runs on the modem
+                     trust boundary-+ (the modem trusted anything from inside the LAN)
+</code></pre>
+<p>The browser is the bridge. It sits inside the LAN, and it runs code from the internet.</p>
+<h3>1.6 How a web app is built</h3>
+<p>The lecture has three parts: the web architecture, the web server, and HTTP with cookies, then JavaScript and its sandbox.</p>
+<ul>
+<li><strong>HTML</strong> (Hypertext Markup Language) builds the page.</li>
+<li><strong>CSS</strong> (Cascading Style Sheets) sets the look, so content stays apart from presentation.</li>
+<li><strong>JavaScript</strong>, also called ECMAScript, is the scripting language of web pages. It can be included inline, as an event attribute, or as a linked file (see 3.3, how the browser parses it).</li>
+<li><strong>Dynamic content</strong> once also used Adobe Flash, Microsoft Silverlight, ActiveX and Java applets.</li>
+<li>The <strong>HTTP server</strong> (for example Apache) handles requests and files. The <strong>web application server</strong> runs the code that builds pages. They connect by CGI (a new process per request), FastCGI (a faster form of CGI) or server modules that run the scripts directly.</li>
+<li>The architecture: the browser talks to a web server over HTTP; the web server runs the application, which may use a database.</li>
+<li>Apache <strong>virtual hosting</strong>: one server hosts many sites and picks one by the <code>Host</code> header (<code>ServerName</code>). All the labs use this.</li>
+<li>PHP can be written inline inside HTML, or kept apart from HTML using templates.</li>
+<li>GET puts parameters in the URL (<code>?name=value&amp;name2=value2</code>), and POST puts them in the body. A GET should not change state, but many apps do it anyway.</li>
+</ul>
+<h3>1.7 Trust boundaries</h3>
+<pre><code> [Attacker] -- hosts a page or plants input --&gt;  [Victim browser] -- holds cookies for the site
+                                                      |  browser attaches cookies by itself
+                                                      v
+                                        [Web server] -- builds a query --&gt; [MySQL]
+                                         trusts cookie                      trusts the query text
+</code></pre>
+<h3>1.8 Quick revision (W01)</h3>
+<ol>
+<li>HTTP is stateless. Apps keep state with server-side sessions and a cookie that holds the session ID.</li>
+<li>Origin = scheme + host + port. Site = registrable domain. They are different tests.</li>
+<li>SOP: the request goes out, but the response cannot be read.</li>
+<li>CORS is a relaxation of SOP that the server approves.</li>
+<li>WebSocket: the browser allows the cross-origin connection and does not restrict its data. The server must check <code>Origin</code>.</li>
+<li><code>HttpOnly</code> stops reading the cookie. <code>Secure</code> stops sending it over plain HTTP. <code>SameSite</code> stops sending it cross-site. Each flag covers a different threat.</li>
+</ol>
+<h3>Practice questions: Web basics</h3>
+<p><strong>1.1</strong> A page at <code>https://shop.com/cart</code> sends an Ajax GET to <code>https://shop.com:8443/api/items</code>. Can its script read the response?<br />
+<strong>Answer:</strong> No, unless the server allows it with CORS. The port differs, so the origin differs. SOP lets the request go out but blocks reading the response.</p>
+<p><strong>1.2</strong> An attacker's page opens a WebSocket to a server the victim can reach. What stops it?<br />
+<strong>Answer:</strong> Only the server, by checking the <code>Origin</code> header in the handshake. Browsers allow cross-origin WebSocket connections and do not restrict their data.</p>
+<p><strong>1.3</strong> A session cookie has <code>HttpOnly</code> and <code>Secure</code>. What can still go wrong?<br />
+<strong>Answer:</strong> CSRF. The browser still attaches the cookie to a forged cross-site request. The two flags only stop script reading it and stop it being sent over plain HTTP.</p>
+<p><strong>1.4</strong> You visit <code>news.com</code>. It loads an image from <code>ads.net</code>, and the request carries an <code>ads.net</code> cookie. First-party or third-party?<br />
+<strong>Answer:</strong> Third-party. What counts is the top-level site in the address bar, not who set the cookie. The same cookie is first-party when you visit <code>ads.net</code> directly.</p>
+<hr />
+<h2>2. CSRF — Cross-Site Request Forgery (W02)</h2>
+<h3>2.1 Core idea</h3>
+<p><strong>Same-site and cross-site requests</strong>. A request from a page back to its own website is a same-site request. A request to a different website is a cross-site request. Example: a page that is not Facebook holds a Facebook link; clicking it sends a cross-site request to Facebook.</p>
+<p>You are logged in to a site. The browser <strong>attaches your cookie to every request to that site, no matter which page started it</strong>. This is called <strong>ambient authority</strong>. If another page makes your browser send a request to that site, the site sees a valid cookie and believes you meant it.</p>
+<p>Using the cookie alone, the server <strong>cannot tell a same-site request from a cross-site one</strong>, so a third-party site can forge a request that looks exactly like a same-site one. The browser knows the difference, but the server does not.</p>
+<p>What an attack needs: a target website; a victim with an active session on it; and a website the attacker controls. The attacker builds a page that sends the forged request, and gets the logged-in victim to visit it.</p>
+<h3>2.2 Step by step</h3>
+<pre><code>1. Victim logs in to www.seed-server.com      -&gt; browser stores the session cookie
+2. Victim, in another tab, opens a page on www.attacker32.com
+3. That page makes the browser send a request to www.seed-server.com
+4. Browser adds the victim's cookie by itself
+5. Server sees a valid cookie and performs the action
+6. The attacker never sees the response (SOP). It does not need to.
+</code></pre>
+<h3>2.3 Two ways to force a request</h3>
+<p>GET puts data such as <code>foo</code> and <code>bar</code> in the URL; POST puts it in the body.</p>
+<ul>
+<li><strong>GET:</strong></li>
+<li>Bank example: a logged-in user at <code>www.bank32.com</code> transfers money with a URL like <code>transfer.php?to=3220&amp;amount=500</code>. The forged request must leave from the victim's own browser, so that the browser adds the victim's session cookie.</li>
+<li>Put the target URL in anything that loads a URL, such as an <code>img</code> or <code>iframe</code> tag. The browser fetches the <code>src</code> address and the action runs. This works only because the app changes state on GET.</li>
+<li>In the Elgg demo the image is made very small so the victim does not notice. The page sits on the attacker's site in <code>/var/www/CSRF/Attacker</code>. Samy sends Alice the link in a private message; when she opens it, Samy is added to her friend list.</li>
+<li><strong>POST:</strong></li>
+<li>A normal HTML form sends a POST when the user clicks Submit. The attacker's job is to "click" it without the user.</li>
+<li>The attacker's script: (1) creates a form with method POST, (2) adds the fields as hidden inputs and puts the form in the page, (3) submits it, and (4) runs this function automatically when the page loads. The user sees nothing.</li>
+</ul>
+<p>POST timeline:</p>
+<pre><code>time   Victim browser                    attacker32.com          seed-server.com
+ |     logged in, has session cookie
+ |---- GET attacker page ---------------&gt;|
+ |&lt;--- page: hidden form + auto-submit --|
+ |     (page loads, script runs)
+ |---- POST /action/profile/edit -------------------------------&gt;|
+ |     Cookie: session (added by browser)                        |
+ |     body: guid, profile fields, access level                  |  cookie valid,
+ |                                                               |  no token check
+ |&lt;--- response (attacker's page cannot read it) ----------------|  -&gt; profile changed
+ v
+</code></pre>
+<p>Both kinds of attack need the exact request format. The attacker learns it by doing the action on its own account and watching the request.</p>
+<ul>
+<li>The browser's developer tools (Network tab) show each request's URL, headers and body.</li>
+</ul>
+<h3>2.4 What a hands-on CSRF exercise shows</h3>
+<p>Practice labs often use Elgg, an open-source social network, with its token check turned off.</p>
+<ul>
+<li>A captured request (add friend, edit profile) has three parts: the action URL with its values, the token fields, and the session cookie that the browser adds itself. With the token check off, everything except the cookie is predictable.</li>
+<li>A GET action can be forged with only an image tag. Modern browsers may not send cross-site cookies on such requests. That is the browser protecting the user.</li>
+<li>A POST action needs a hidden form that submits itself. Values such as the victim's user ID must be found in public pages first, so one forged page targets one known victim. XSS reads such values at run time instead (3.4).</li>
+<li>With the token check back on, the forged request fails. The attacker's page cannot read the token, because of SOP.</li>
+</ul>
+<h3>2.5 Defences</h3>
+<p>The lecture sorts the defences by who helps:</p>
+<ul>
+<li><strong>The browser helps:</strong> the Referer header and same-site cookies.</li>
+<li><strong>The server helps itself:</strong> a secret token.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Defence</th>
+<th>How it works</th>
+<th>Weakness</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Referer / Origin check</strong></td>
+<td>The server looks at where the request came from</td>
+<td>Referer reveals browsing history, so privacy tools and proxies often remove it. The server must then either accept requests that lack it (attacks pass) or reject them (real users break).</td>
+</tr>
+<tr>
+<td><strong>SameSite cookie</strong></td>
+<td>The browser does not attach the cookie on cross-site requests</td>
+<td>Needs browser support. Lax still sends it on cross-site GET navigation</td>
+</tr>
+<tr>
+<td><strong>Secret token</strong></td>
+<td>Each page carries a random value that the attacker cannot know. The server rejects requests that lack the right one</td>
+<td>Strong only if built and checked correctly (see below)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Why the token stops CSRF:</strong></p>
+<ul>
+<li>The token is random and differs per user.</li>
+<li>The attacker's page cannot read the real site's pages, because SOP blocks it.</li>
+<li>So the attacker can only send a request without the token, and the server rejects it.</li>
+</ul>
+<p><strong>What can still break a token:</strong></p>
+<ul>
+<li><strong>XSS on the same site.</strong> Injected script runs in the site's origin and can read the token (section 3).</li>
+<li><strong>Token leakage</strong>, for example in a URL that ends up in logs or in the Referer header.</li>
+<li><strong>Weak checks</strong>, for example:</li>
+<li>accepting a request when the token is missing,</li>
+<li>checking only that a token exists, not that it is right,</li>
+<li>checking only some methods or actions.</li>
+<li><strong>No session binding.</strong> A token not tied to the user's session can be swapped for the attacker's own valid token.</li>
+<li><strong>Predictable tokens</strong> that the attacker can guess.</li>
+</ul>
+<p><strong>How Elgg's token works:</strong></p>
+<ul>
+<li>Each request carries two values: <code>__elgg_ts</code> (a timestamp) and <code>__elgg_token</code>.</li>
+<li>The page holds them in JavaScript variables (<code>elgg.security.token.__elgg_ts</code> and <code>elgg.security.token.__elgg_token</code>) and in hidden form fields.</li>
+<li>The two fields are <code>__elgg_ts</code> (timestamp) and <code>__elgg_token</code>.</li>
+<li>The token is built from four inputs: the site secret, the timestamp, the user's session ID and a random session string.</li>
+<li>It is an HMAC (keyed hash) built on MD5.</li>
+</ul>
+<h3>2.6 SameSite in detail</h3>
+<p>The lecture says SameSite is supported "in browsers like Chrome and Opera". It lists <strong>Strict (not sent with cross-site requests)</strong> and <strong>Lax (sent with cross-site requests)</strong>. The Lax line is a simplification. Lax sends the cookie on cross-site <strong>top-level GET navigation</strong> only. It does not send it on cross-site POST, image, iframe or Ajax requests.</p>
+<p><strong>SameSite experiment:</strong></p>
+<ol>
+<li>Visit <code>http://www.example32.com/</code>. It sets three cookies: <code>cookie-normal</code>, <code>cookie-lax</code> and <code>cookie-strict</code>.</li>
+<li><strong>Link A</strong> opens a page on <code>www.example32.com</code> (same-site). <strong>Link B</strong> opens a page on <code>www.attacker32.com</code> (cross-site). The two pages differ only in background colour.</li>
+<li>Each page sends requests to <code>www.example32.com/showcookies.php</code>, which prints the cookies it received. The request types are a link (GET), a GET form and a POST form.</li>
+</ol>
+<p>Expected results under current browser rules:</p>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Link A (same-site)</th>
+<th>Link B (cross-site)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Link click (GET navigation)</td>
+<td>normal, lax, strict</td>
+<td>normal, lax</td>
+</tr>
+<tr>
+<td>GET form submit (navigation)</td>
+<td>normal, lax, strict</td>
+<td>normal, lax</td>
+</tr>
+<tr>
+<td>POST form submit</td>
+<td>normal, lax, strict</td>
+<td>normal only</td>
+</tr>
+</tbody>
+</table>
+<p>Some browsers treat a cookie with no SameSite attribute as Lax. Then even <code>cookie-normal</code> is missing from the cross-site POST.</p>
+<p>The repo's CSRF lab has a README note on SameSite but no <code>www.example32.com</code> test site. Its <code>apache_csp.conf</code> is the XSS CSP set-up (3.7). To run the experiment, use the official SEED image.</p>
+<h3>2.7 Common mistakes</h3>
+<ul>
+<li>CSRF does <strong>not</strong> steal the response. It makes the victim <em>do</em> something.</li>
+<li>Cookies are sent by the browser, so <code>HttpOnly</code> does not help.</li>
+<li>POST is not safer than GET against CSRF. The attacker only needs a form.</li>
+<li>The attacker never sees the victim's password or cookie value, and does not need them.</li>
+<li>SOP keeps the token secret from other sites. Same-site script (XSS) is not blocked.</li>
+</ul>
+<h3>2.8 Quick revision (CSRF)</h3>
+<ol>
+<li>Cause: ambient authority (cookies are sent automatically).</li>
+<li>Needs: the victim is logged in, the request format is predictable, and the victim visits the attacker's page.</li>
+<li>GET through tags, POST through a hidden form that submits itself.</li>
+<li>Defences: Referer (weak, often missing), SameSite (browser), secret token (strong if done right).</li>
+<li>A token fails to XSS, to leakage, and to weak or unbound checks.</li>
+</ol>
+<h3>Practice questions: CSRF</h3>
+<p><strong>2.1</strong> A bank uses only a session cookie. Why can a page on another site cause a transfer?<br />
+<strong>Answer:</strong> Ambient authority. The browser attaches the bank's cookie to any request sent to the bank, whatever page started it. The attacker never needs the cookie's value.</p>
+<p><strong>2.2</strong> Why does a secret token stop CSRF but not XSS?<br />
+<strong>Answer:</strong> SOP stops the attacker's cross-site page from reading the token. Injected script runs in the site's own origin, so it can read the token from the page.</p>
+<p><strong>2.3</strong> What is wrong with defending only by checking the Referer header?<br />
+<strong>Answer:</strong> Referer can be missing, because privacy tools and proxies remove it. The server must then accept such requests (attacks pass) or reject them (real users break).</p>
+<p><strong>2.4</strong> With <code>SameSite=Lax</code>, which cross-site request still carries the cookie?<br />
+<strong>Answer:</strong> Top-level GET navigation, such as a link click. Cross-site POST, image, iframe and Ajax requests do not carry it.</p>
+<hr />
+<h2>3. XSS — Cross-Site Scripting (W03)</h2>
+<h3>3.1 Core idea</h3>
+<p>The site puts user-supplied text into a page without making it safe. The browser cannot tell that the site did not write this text, so it runs it as script <strong>with the site's own origin and privileges</strong>. The injected code can do whatever the user can do: read cookies, change the page and send requests.</p>
+<p>Root cause: <strong>code and data are mixed.</strong></p>
+<h3>3.2 Types</h3>
+<p>The lecture names two types: <strong>non-persistent (reflected)</strong> and <strong>persistent (stored)</strong>. DOM-based XSS is not in the slides.</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Where the bad input lives</th>
+<th>Who is hit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Stored (persistent)</strong></td>
+<td>Saved on the server: a profile field, comment or message</td>
+<td>Everyone who later views it</td>
+</tr>
+<tr>
+<td><strong>Reflected (non-persistent)</strong></td>
+<td>Sent in the request (URL or form), echoed back in the response, not saved. Example: a search page that prints the <code>input</code> parameter</td>
+<td>The person who follows the crafted link</td>
+</tr>
+<tr>
+<td><strong>DOM-based</strong></td>
+<td>The page's own JavaScript reads input (for example the URL fragment after <code>#</code>) and writes it into the page with an unsafe sink such as <code>innerHTML</code></td>
+<td>The person whose browser runs that page script</td>
+</tr>
+</tbody>
+</table>
+<pre><code>STORED                               REFLECTED                          DOM-BASED
+attacker -&gt; POST profile text        attacker sends a crafted link       attacker sends a crafted link
+            |                                  |                                     |
+         [server DB] saves it          victim clicks -&gt; request to server   victim opens the page
+            |                                  |                                     |
+victim -&gt; GET profile page           server copies input into response   server returns a normal page
+            |                                  |                           (may never see the input)
+server sends page with the text      browser parses response                       |
+            |                                  |                         page JS reads location/hash
+browser parses -&gt; script runs        script runs in site origin           and writes it into the DOM
+in site origin                                                                     |
+                                                                         script runs in site origin
+</code></pre>
+<p>More from the slides:</p>
+<ul>
+<li><strong>Reflected</strong>: many sites take input, do something with it, and put the original input back into the response page. The slides call this "reflective behaviour". If the input holds script, the site itself delivers that script to the page.</li>
+<li>
+<p><strong>Stored</strong>: when a site stores one user's data and later shows it to others, it creates a channel between users. A social-network profile is one: one user sets it, another views it. These channels are meant to carry data only. If the site does not clean the input, markup and script travel through the channel and run in the viewer's browser with the site's privileges.</p>
+</li>
+<li>
+<p><strong>Fix for stored and reflected:</strong> encode on the server when building HTML.</p>
+</li>
+<li><strong>Fix for DOM-based:</strong> use safe sinks in the client code, such as <code>textContent</code> instead of <code>innerHTML</code>, plus CSP. Encoding on the server does not help when the server never handles the input.</li>
+</ul>
+<p>The lab covers stored XSS only (the Elgg profile).</p>
+<h3>3.3 How the browser parses it</h3>
+<pre><code>Server response (HTML text)
+        |
+   HTML parser reads tags
+        |  sees a script element (from the site OR from user text - it cannot tell)
+        v
+   JavaScript engine runs it in the page's origin
+        -&gt; can read the DOM, the page's JS variables, send requests as the user
+</code></pre>
+<p>Code gets into a page in two ways:</p>
+<ul>
+<li><strong>Inline:</strong> a <code>&lt;script&gt;</code> block, or an event attribute such as <code>onclick</code>.</li>
+<li><strong>Linked:</strong> <code>&lt;script src="..."&gt;</code>, pointing to a file on the same site or another site.</li>
+</ul>
+<p>Inline is the problem, because the browser cannot tell who wrote it. A linked file at least has a known source, which CSP can check.</p>
+<h3>3.4 What the attacker can do</h3>
+<p>Three kinds of damage: defacing the page, forging requests as the user, and stealing information.</p>
+<p><strong>What a hands-on XSS exercise shows</strong> (script stored in a social-network profile field):</p>
+<ul>
+<li>Any field shown to other users is an attack surface. Rich-text editors wrap input in extra HTML, so tests use the editor's plain HTML mode.</li>
+<li>The steps build up: prove script runs, show it can read the page's cookie, show it can send data to another server, then show it can act as the user (add a friend, edit the profile) with Ajax.</li>
+<li>Sending data out works because the browser makes any request the script asks for, including one to the attacker's server.</li>
+<li>Acting as the user works even with CSRF tokens on. The page keeps its token in JavaScript variables, the script reads it, and its request then matches a real one.</li>
+<li>The script reads values such as the victim's user ID at run time. A CSRF page must know them in advance.</li>
+<li>The injected script comes from the site itself, so it may read the site's cookies. A CSRF page is third-party and cannot.</li>
+<li><code>HttpOnly</code> stops only the cookie-reading steps. Acting as the user still works, because the browser attaches the cookie to the script's requests.</li>
+<li>A copy that spreads itself becomes a worm (3.5). The best-known case is the Samy worm on MySpace (4 October 2005), which reached over one million users in about 20 hours.</li>
+</ul>
+<h3>3.5 Worm: how it copies itself (idea only)</h3>
+<p>Two approaches:</p>
+<ul>
+<li><strong>Link approach</strong>: the worm is an external file (<code>xssworm.js</code>). The infected profile holds only a script tag pointing to it. To spread, it copies that one tag. This is easy, but it needs a server to host the file.</li>
+<li><strong>DOM approach</strong>: the whole worm sits inline in the page. To spread, it rebuilds a copy of itself:
+  1. Get its own element, <code>document.getElementById("worm")</code>, and read its <code>innerHTML</code>. This gives the code inside the element without the <code>&lt;script&gt;</code> tags.
+  2. Add the opening and closing tags back. The closing tag is written in two pieces, so the HTML parser does not end the script block early.
+  3. URL-encode the result with <code>encodeURIComponent</code>, because the POST body type is <code>application/x-www-form-urlencoded</code>.
+  4. Post it into the victim's profile.
+  The lab requires this approach, because it needs no outside server.</li>
+</ul>
+<h3>3.6 Defences</h3>
+<table>
+<thead>
+<tr>
+<th>Defence</th>
+<th>Idea</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Filtering</strong></td>
+<td>Remove dangerous tags from input</td>
+<td>Hard, because there are many ways to embed code besides a script tag. The slides' Java example is jsoup. Elgg uses the HTMLawed plugin, a highly customizable PHP sanitizer. The lab turns it off by commenting out its hook call in <code>filter_tags()</code> in <code>input.php</code></td>
+</tr>
+<tr>
+<td><strong>Encoding</strong></td>
+<td>Turn special characters into harmless text (<code>&lt;</code> becomes <code>&amp;lt;</code>), so they are shown, not run</td>
+<td>Elgg uses PHP <code>htmlspecialchars()</code>. The lab comments it out in the output views <code>dropdown.php</code>, <code>text.php</code> and <code>url.php</code></td>
+</tr>
+<tr>
+<td><strong>CSP (Content Security Policy)</strong></td>
+<td>The server tells the browser which script sources are allowed. Inline script and inline event handlers are blocked unless allowed</td>
+<td>Set as an HTTP header by Apache or by the app</td>
+</tr>
+</tbody>
+</table>
+<p><strong>CSP in the slides:</strong></p>
+<ul>
+<li><strong>The problem</strong>: inline code. The fix is to forbid inline code and allow only linked code from trusted places.</li>
+<li><strong>Origin allow-list</strong>: <code>Content-Security-Policy: script-src 'self' example.com https://apis.google.com</code>. Scripts may load from the page's own origin and from those two hosts only.</li>
+<li><strong>Nonce</strong>: <code>script-src 'nonce-34fo3er92d'</code>. An inline script with <code>nonce=34fo3er92d</code> runs, and one with <code>nonce=3efsdfsdff</code> does not. The server must create a fresh unguessable nonce for each response.</li>
+<li><strong>Hash</strong>: allows an inline script whose content hash matches a hash listed in the policy. A changed script no longer matches, so it is blocked.</li>
+<li><strong>Setting it</strong>: in PHP, <code>header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-1rA2345' www.example.com")</code>, sent before the page body.</li>
+</ul>
+<h3>3.7 CSP worked example</h3>
+<p>One test page has six script areas and a button. Three sites serve it with different policies, and two more sites host script files.</p>
+<table>
+<thead>
+<tr>
+<th>Site</th>
+<th>CSP set by</th>
+<th>Policy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>www.example32a.com</code></td>
+<td>nothing</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>www.example32b.com</code></td>
+<td>Apache <code>Header set</code></td>
+<td><code>default-src 'self'; script-src 'self' *.example70.com</code></td>
+</tr>
+<tr>
+<td><code>www.example32c.com</code></td>
+<td>PHP (<code>phpindex.php</code>)</td>
+<td><code>default-src 'self'; script-src 'self' 'nonce-111-111-111' *.example70.com</code></td>
+</tr>
+<tr>
+<td><code>www.example60.com</code>, <code>www.example70.com</code></td>
+<td>nothing</td>
+<td>host JavaScript files</td>
+</tr>
+</tbody>
+</table>
+<p>What each area shows:</p>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Code</th>
+<th>32a (no CSP)</th>
+<th>32b (Apache CSP)</th>
+<th>32c (PHP CSP)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>inline, nonce 111-111-111</td>
+<td>OK</td>
+<td>Failed</td>
+<td>OK</td>
+</tr>
+<tr>
+<td>2</td>
+<td>inline, nonce 222-222-222</td>
+<td>OK</td>
+<td>Failed</td>
+<td>Failed</td>
+</tr>
+<tr>
+<td>3</td>
+<td>inline, no nonce</td>
+<td>OK</td>
+<td>Failed</td>
+<td>Failed</td>
+</tr>
+<tr>
+<td>4</td>
+<td>from self</td>
+<td>OK</td>
+<td>OK</td>
+<td>OK</td>
+</tr>
+<tr>
+<td>5</td>
+<td>from example60.com</td>
+<td>OK</td>
+<td>Failed</td>
+<td>Failed</td>
+</tr>
+<tr>
+<td>6</td>
+<td>from example70.com</td>
+<td>OK</td>
+<td>OK</td>
+<td>OK</td>
+</tr>
+<tr>
+<td>button</td>
+<td>inline <code>onclick</code></td>
+<td>works</td>
+<td>blocked</td>
+<td>blocked</td>
+</tr>
+</tbody>
+</table>
+<p>This table is worked out from the policies and the page, not from a browser run.</p>
+<p><strong>Why:</strong></p>
+<ul>
+<li><code>'self'</code> allows files from the same origin.</li>
+<li>A nonce allows only inline script that carries the matching nonce.</li>
+<li><code>*.example70.com</code> allows that host.</li>
+<li>Anything not allowed is blocked.</li>
+<li>Inline event handlers are blocked unless <code>'unsafe-inline'</code> is allowed.</li>
+</ul>
+<p><strong>What it shows:</strong></p>
+<ul>
+<li>With no CSP, everything runs. That is why injected inline code is dangerous.</li>
+<li>To allow scripts from another host, add the host to <code>script-src</code>. Adding <code>*.example60.com</code> makes area 5 run.</li>
+<li>To allow one inline block, add its nonce. Adding <code>'nonce-222-222-222'</code> makes area 2 run.</li>
+<li>Inline event handlers stay blocked under both policies. Move them into a script file and attach them with <code>addEventListener</code>.</li>
+<li>CSP helps against XSS because the browser runs only code from sources the server named. Injected inline code does not run.</li>
+</ul>
+<h3>3.8 Common mistakes</h3>
+<ul>
+<li>Stored vs reflected: stored input lives on the server; reflected input comes back in the same request.</li>
+<li>XSS runs in the <strong>site's</strong> origin, so SOP does not stop it. That is the whole point.</li>
+<li><code>HttpOnly</code> does not stop XSS. It only stops reading the cookie.</li>
+<li>A CSRF token stops CSRF, not XSS.</li>
+<li>Encoding output is the main fix. Filtering alone is easy to get wrong.</li>
+<li>CSP is a second layer, not a replacement for encoding.</li>
+</ul>
+<h3>3.9 Quick revision (XSS)</h3>
+<ol>
+<li>Cause: untrusted data is treated as code.</li>
+<li>Types: stored and reflected (slides), DOM-based (general).</li>
+<li>Damage: deface the page, forge requests, steal data.</li>
+<li>XSS beats CSRF tokens because the script reads the token. <code>HttpOnly</code> blocks only cookie reading.</li>
+<li>Worm: link approach vs DOM approach (the lab requires DOM).</li>
+<li>Fixes: filter, encode, CSP (origin allow-list, nonce, hash).</li>
+</ol>
+<p><strong>Key comparisons:</strong></p>
+<ul>
+<li>CSRF and XSS both say "cross-site", but CSRF sends a request from another site and cannot read the target's pages. XSS runs code inside the target's own pages, so it can read and do anything the user can.</li>
+<li>CSRF defences do not stop XSS. The script reads the token from the page, and its requests are same-site, so SameSite cookies are sent too.</li>
+</ul>
+<h3>Practice questions: XSS</h3>
+<p><strong>3.1</strong> A comment is saved and shown to every visitor without encoding, and script in it runs. Which type is this, and why is it powerful?<br />
+<strong>Answer:</strong> Stored XSS. It runs in the site's own origin, so SOP does not restrict it.</p>
+<p><strong>3.2</strong> A site has <code>HttpOnly</code> cookies and CSRF tokens, but a stored XSS bug remains. What can injected script still do?<br />
+<strong>Answer:</strong> Read the token from the page and send valid requests as the user. <code>HttpOnly</code> only stops it reading the cookie.</p>
+<p><strong>3.3</strong> Policy: <code>default-src 'self'; script-src 'self' 'nonce-abc'</code>. Which runs: inline script with no nonce, an inline <code>onclick</code>, inline script with <code>nonce="abc"</code>, or a script from <code>http://evil.com/x.js</code>?<br />
+<strong>Answer:</strong> Only the inline script with <code>nonce="abc"</code>. Inline code needs the matching nonce, inline handlers need <code>'unsafe-inline'</code>, and <code>evil.com</code> is not in the allow-list.</p>
+<p><strong>3.4</strong> What is the best long-term fix for XSS?<br />
+<strong>Answer:</strong> Encode user data when writing it into HTML, so the browser treats it as text, not markup. Removing words like "script" is easy to get around, and <code>HttpOnly</code> or POST do not stop script from running.</p>
+<hr />
+<h2>4. SQL Injection (W04)</h2>
+<h3>4.1 SQL basics</h3>
+<ul>
+<li>Log in to MySQL, then <code>CREATE DATABASE</code>, <code>SHOW DATABASES</code> and <code>USE db</code>. SQL keywords are not case-sensitive.</li>
+<li><code>CREATE TABLE</code> and <code>DESCRIBE</code>. The slide example is table <code>employee</code> in database <code>dbtest</code>, with seven columns. The notes cover data types, <code>NOT NULL</code> and auto-increment.</li>
+<li><code>INSERT INTO</code> adds a row, and the ID column fills itself.</li>
+<li><code>SELECT</code> reads all columns or chosen ones. The slide example reads EID5001, David.</li>
+<li><code>WHERE</code> filters rows. Conditions combine with <code>AND</code> and <code>OR</code>. A condition that is always true (<code>1=1</code>) selects every row. It looks useless in a normal query but matters in injection.</li>
+<li><code>UPDATE ... SET a=..., b=... WHERE ...</code> changes rows. The SET list is separated by commas.</li>
+<li>Three comment styles: <code>#</code> to end of line, <code>--</code> to end of line, and <code>/* ... */</code>. In MySQL, <code>--</code> must be followed by a space or control character; the slide does not say this.</li>
+</ul>
+<h3>4.2 How a web app reaches the database</h3>
+<pre><code>User -&gt; browser -&gt; web server (PHP) -&gt; MySQL
+  form data in a GET/POST request
+  PHP puts it in $_GET or $_POST
+  PHP connects: new mysqli(&quot;localhost&quot;, user, password, db)
+  PHP builds the query STRING with the data inside
+  PHP sends the string to MySQL
+</code></pre>
+<ul>
+<li>Three parts: the browser, the web application server and the database. The browser talks to the server in HTTP. The server talks to the database in SQL.</li>
+<li>An HTML form sends its fields as a GET request by default. PHP receives them in the <code>$_GET</code> or <code>$_POST</code> array.</li>
+<li><code>new mysqli(...)</code> takes four arguments: host, login name, password and database name. The host is <code>"localhost"</code> when the database runs on the same machine.</li>
+<li>PHP has three ways to reach MySQL: the old MySQL extension, MySQLi (common, MySQL 4.1+) and PDO.</li>
+<li>HTTPS encrypts the request on the network. It does nothing about what the data does inside the query.</li>
+<li>The path from user input to the database is a new attack surface: if the data is not handled with care, it can change the query.</li>
+</ul>
+<p>The weak point: <strong>the user's data becomes part of the SQL text.</strong> The database cannot tell which part the developer wrote and which part the user typed.</p>
+<h3>4.3 The core mechanism</h3>
+<ol>
+<li>The developer means for the user to fill in a blank inside quotes.</li>
+<li>The attacker types a quote, which closes the string early.</li>
+<li>The attacker's next text is then read as SQL.</li>
+<li>A comment symbol cuts off the rest of the original query, such as the password test.</li>
+</ol>
+<p>So the query now means something the developer did not plan.</p>
+<p>Concatenation vs binding, as query trees:</p>
+<pre><code>CONCATENATED  input for eid = EID5002'#
+
+  text sent:  SELECT * FROM employee WHERE eid='EID5002'#' AND password='...'
+                                                        ^ rest is a comment
+  parsed as:
+        SELECT
+          └─ WHERE
+               └─ eid = 'EID5002'           &lt;- password test is gone
+
+BOUND  same input, prepared statement
+
+  template:   SELECT * FROM employee WHERE eid=? AND password=?   (parsed first)
+  parsed as:
+        SELECT
+          └─ WHERE
+               └─ AND
+                   ├─ eid = [value 1]       &lt;- value 1 = the text  EID5002'#  (no row has it)
+                   └─ password = [value 2]
+  The tree is fixed before the values arrive. The values never change its shape.
+</code></pre>
+<p>Results from the slides:</p>
+<ul>
+<li><code>EID5002'#</code> with any password returns that employee's name, salary and SSN.</li>
+<li>An always-true condition returns every record.</li>
+<li>With <code>curl</code>, special characters must be URL-encoded: <code>%27</code> for an apostrophe, <code>%20</code> for a space and <code>%23</code> for <code>#</code>. Put the whole URL in single quotes so the shell does not treat <code>&amp;</code> as a command separator.</li>
+<li>The UPDATE page (<code>changepasswd.php</code>, a POST with EID, old password and new password) lets Alice (EID5000) add <code>salary=...</code> to the SET list and raise her own salary. The slide asks how to set Bob's (EID5001) salary to 0. For that, the WHERE part must also be changed to point at Bob's row.</li>
+</ul>
+<h3>4.4 Worked example: login and UPDATE</h3>
+<ul>
+<li><strong>Login.</strong> The code reads the username and password, hashes the password, and builds a SELECT with both values in quotes, run with <code>$conn-&gt;query()</code>. Only the username reaches the SQL as raw text, so it is the injection point. If the matched row is the admin, the page lists every employee.</li>
+<li>The same request works from the web form or from the command line with curl, as long as special characters are URL-encoded.</li>
+<li>A second statement after a semicolon fails, because <code>query()</code> runs one statement only (4.5).</li>
+<li><strong>Profile edit.</strong> The code runs one <code>UPDATE credential SET ... WHERE ID=$id</code> built from user values. Injected text can add one more <code>column=value</code> to the SET list (such as salary) or change the WHERE target to another user's row.</li>
+<li>Passwords are stored as hashes. Changing a password through injection means storing the hash of a known password, not the plain text.</li>
+</ul>
+<h3>4.5 Multiple statements</h3>
+<p>Adding a second statement after a semicolon, such as a drop-database command, does <strong>not</strong> work here. PHP <code>mysqli::query()</code> refuses to run more than one statement, so the slide's attempt to add a drop of <code>dbtest</code> fails. The page then shows a MySQL syntax error for the extra text. <code>mysqli::multi_query()</code> can run several statements, but it is <strong>not recommended</strong>.</p>
+<p>So the damage is limited to changing the one existing statement, unless the app uses <code>multi_query()</code>.</p>
+<h3>4.6 Fundamental cause</h3>
+<p>The cause is mixing data and code. The slide shows this as a diagram, with a note to see the textbook for detail. The same cause sits behind SQL injection, XSS, attacks on the <code>system()</code> call, and format-string bugs. The matching fix for <code>system()</code> is <code>execve()</code>, which takes the command and its data as separate arguments.</p>
+<h3>4.7 Defences</h3>
+<p><strong>1. Filtering and encoding.</strong> Escape special characters before they join the query. In PHP this is <code>mysqli::real_escape_string()</code>, which encodes characters such as quotes, NULL, <code>\r</code>, <code>\n</code> and <code>\b</code>.</p>
+<ul>
+<li>The slide notes say this does not fix the fundamental cause, because data and code are still mixed. It only makes the code safer.</li>
+<li>It only helps when the value is inside quotes. A numeric field with no quotes stays open. It also depends on the right character-set set-up.</li>
+</ul>
+<p><strong>2. Prepared statements (the fundamental fix).</strong></p>
+<p>The lecture calls them a <strong>performance feature</strong> for running the same statement many times. They were not built for security:</p>
+<blockquote>
+<p>"The database parses, compiles and performs query optimization on the SQL statement template and stores the result without executing it."</p>
+</blockquote>
+<pre><code>Step 1  prepare:  send the TEMPLATE with ? placeholders   -&gt; DB parses, compiles, optimises, stores it. Nothing runs.
+Step 2  bind:     send the VALUES (bind_param, &quot;is&quot; = int, string)
+Step 3  execute:  run the stored statement with the bound values
+</code></pre>
+<p>Why it is safe:</p>
+<ul>
+<li>The template goes through the <strong>code channel</strong> and the values go through the <strong>data channel</strong>.</li>
+<li>"Data received from the data channel is not parsed."</li>
+<li>So SQL-looking text in a value stays plain data.</li>
+</ul>
+<p>General principle:</p>
+<ul>
+<li>The statement's structure is fixed apart from the values, and the values are treated only as data.</li>
+<li>Some drivers do not send a real prepare to the server. PHP PDO with emulated prepares (the default for MySQL) escapes and inserts the values on the client.</li>
+<li>That is still safe for values when the character set is set correctly. But the "server compiles first" picture is not literally what happens there.</li>
+</ul>
+<p>A safe login query with mysqli:</p>
+<pre><code class="language-php">$stmt = $conn-&gt;prepare(&quot;SELECT name, local, gender FROM USER_TABLE WHERE id = ? and password = ?&quot;);  // prepare
+$stmt-&gt;bind_param(&quot;is&quot;, $id, $pwd);   // bind; i = integer, s = string
+$stmt-&gt;execute();                     // execute and fetch
+$stmt-&gt;bind_result($bind_name, $bind_local, $bind_gender);
+$stmt-&gt;fetch();
+</code></pre>
+<p><strong>Limit:</strong> placeholders can stand in for <strong>values</strong> only. They cannot replace table names, column names or <code>ORDER BY</code> choices. For those, use a fixed allow-list. So "100% secure" is an overclaim: prepared statements stop injection through values, not every SQL mistake.</p>
+<h3>4.8 Testing tip</h3>
+<p>The web app hides error messages. Copy the final SQL string into the MySQL console to find syntax errors.</p>
+<h3>4.9 Common mistakes</h3>
+<ul>
+<li>In MySQL, <code>--</code> needs a space after it; <code>#</code> does not.</li>
+<li><code>query()</code> blocks stacked statements; <code>multi_query()</code> allows them.</li>
+<li>If the password is hashed before it enters the query, only the <strong>username</strong> is the injection point. Without hashing, both fields are.</li>
+<li>Prepared statements protect values, not identifiers.</li>
+<li><code>real_escape_string</code> is not the same as prepared statements.</li>
+<li>UPDATE injection changes data; SELECT injection reads data.</li>
+</ul>
+<h3>4.10 Quick revision (SQLi)</h3>
+<ol>
+<li>Cause: user data joins the query text (code and data are mixed).</li>
+<li>A quote closes the string, and a comment cuts off the rest.</li>
+<li>SELECT = read; UPDATE/INSERT = change.</li>
+<li><code>query()</code> runs one statement; <code>multi_query()</code> runs many.</li>
+<li>Fixes: escaping (weaker), prepared statements (strong).</li>
+<li>Prepare, then bind, then execute. Code channel and data channel.</li>
+</ol>
+<h3>Practice questions: SQL injection</h3>
+<p><strong>4.1</strong> Login code puts the username inside quotes and hashes the password with SHA1 before building the query. Which field is the injection point?<br />
+<strong>Answer:</strong> The username. The password becomes a hex hash with no quotes in it before it enters the SQL text. Without the hashing, both fields would be open.</p>
+<p><strong>4.2</strong> Input holds a semicolon and a second statement. The app uses <code>mysqli::query()</code>. What happens?<br />
+<strong>Answer:</strong> The call fails. <code>query()</code> runs one statement only; <code>multi_query()</code> would run both.</p>
+<p><strong>4.3</strong> Why can SQL-looking text in a bound value not fool a prepared statement?<br />
+<strong>Answer:</strong> The query's structure is fixed before the values arrive. Bound values are sent as data and never parsed as SQL.</p>
+<p><strong>4.4</strong> "Prepared statements make every query injection-proof." Where is this wrong?<br />
+<strong>Answer:</strong> Placeholders cannot stand for identifiers such as column names or an <code>ORDER BY</code> choice. Those must be picked from an allow-list, never built from user input.</p>
+<hr />
+<h2>5. Clickjacking (W05)</h2>
+<h3>5.1 Core idea</h3>
+<p>The victim thinks they are clicking on one page. They are really clicking on another page hidden on top of it. The target site receives a genuine click from a logged-in user, so nothing looks wrong to the server. The cookies are real; the user's intent is not.</p>
+<h3>5.2 Building blocks</h3>
+<p>The deck has four parts: iframes and their properties, clickjacking with iframes, countermeasures (CSP), and the iframe's own security features.</p>
+<ul>
+<li><strong>iframe:</strong> embeds one web page inside another. The lecture shows pages that hold other pages this way, each with its own <code>src</code>, <code>width</code> and <code>height</code>.</li>
+<li><strong>Overlapping iframes:</strong> CSS <code>position: absolute</code> with <code>top</code> and <code>left</code> puts one frame over another.</li>
+<li><strong>Transparent iframe:</strong> <code>opacity: 0</code> makes the frame invisible but still clickable.</li>
+</ul>
+<p>Layers, as the attacker builds them (CSS values are typical):</p>
+<pre><code>                 z-index   opacity   what it is
+ viewer's eye
+    |
+    v   +-------------------------------------------+
+        | layer 2: iframe of target site            |  z-index: 2   opacity: 0     receives the click
+        |          [ Add friend ]  &lt;- lined up      |  (invisible, but on top)
+        +-------------------------------------------+
+        +-------------------------------------------+
+        | layer 1: attacker's bait page             |  z-index: 1   opacity: 1     what the user sees
+        |          &quot;Win a prize!&quot;  [ CLICK HERE ]   |
+        +-------------------------------------------+
+ The user aims at CLICK HERE. The click hits the invisible Add friend button above it.
+</code></pre>
+<h3>5.3 Attack variants</h3>
+<ol>
+<li><strong>LikeJacking.</strong> A social "Like" button is placed with absolute positioning (for example <code>top:220px; left:700px</code>) exactly where the bait asks the user to click. One click "likes" the attacker's page. The slide's attack page frames a bait page (<code>bottom1.html</code>) and puts the transparent Like frame on top.</li>
+</ol>
+<p>Each variant has an "Attack Code" slide. They all use the same pieces: an iframe of the target, absolute position, z-index and opacity, as in the diagram above.</p>
+<ol start="2">
+<li><strong>Adding a friend.</strong> A hidden frame of the target site's add-friend page is lined up under the bait button. The user adds the attacker as a friend without knowing.</li>
+<li><strong>Sequence of clicks.</strong> Some actions need several clicks, for example "Delete", then "Are you sure? Yes". The bait page shows several buttons (btn1–btn4), each placed over the next real button in turn, often as a game. Each click moves the hidden action one step on.</li>
+<li><strong>Small-size iframe.</strong> The attacker's page holds a very small frame (for example 120x50 pixels, <code>scrolling="no"</code>, no border) positioned at a chosen spot. Because it is tiny and cannot scroll, it shows only one small part of the other page, such as a button or a few words. That part blends into the host page and looks like the attacker's own content. The slide example shows one site's text inside another site's page.</li>
+<li><strong>Fake login.</strong> The attacker's own fake login form is placed where the real one appears, so the user types their password into the attacker's form.</li>
+</ol>
+<h3>5.4 Building and defending a test page</h3>
+<ol>
+<li><strong>Attacker:</strong> frame the target page full-size with no border, layered under the attacker's content using CSS <code>position</code>.</li>
+<li><strong>Attacker:</strong> place a decoy button exactly over a real button in the frame, so the click reaches the framed page.</li>
+<li><strong>Defender:</strong> add a framebuster. If <code>window.top</code> is not <code>window.self</code>, move the top window to this page.</li>
+<li><strong>Attacker:</strong> add <code>sandbox</code> to the iframe. Top navigation is blocked, so the buster cannot escape and the page stays framed.</li>
+<li><strong>Defender:</strong> send <code>X-Frame-Options: DENY</code> and <code>Content-Security-Policy: frame-ancestors 'none'</code>. The browser refuses to show the page in any frame, and no script on either side can change that.</li>
+</ol>
+<h3>5.5 Defences</h3>
+<p><strong>Frame-busting (framekiller).</strong> Script on the page checks whether it is inside a frame and, if so, moves the top window to itself:</p>
+<pre><code class="language-js">if (top != self) top.location.replace(location);
+</code></pre>
+<p>The slides call it unreliable and no longer used. The reason is that the attacker controls the frame (5.6).</p>
+<p><strong>How <code>sandbox</code> defeats the buster.</strong> Two things are different: whether scripts <strong>run</strong>, and whether scripts may <strong>navigate the top window</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Attacker's iframe</th>
+<th>Buster script runs?</th>
+<th>Can it move the top window?</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>no <code>sandbox</code></td>
+<td>yes</td>
+<td>yes</td>
+<td>buster escapes; attack fails</td>
+</tr>
+<tr>
+<td><code>sandbox</code> (no options)</td>
+<td><strong>no</strong>, scripts are off</td>
+<td>—</td>
+<td>buster never runs; page stays framed</td>
+</tr>
+<tr>
+<td><code>sandbox="allow-scripts"</code></td>
+<td><strong>yes</strong>, <code>top != self</code> is true</td>
+<td><strong>no</strong>, <code>allow-top-navigation</code> is missing, so the browser blocks the navigation</td>
+<td>buster runs but cannot escape; page stays framed</td>
+</tr>
+<tr>
+<td><code>sandbox="allow-scripts allow-top-navigation"</code></td>
+<td>yes</td>
+<td>yes</td>
+<td>buster escapes</td>
+</tr>
+</tbody>
+</table>
+<p>The attacker usually also adds <code>allow-forms</code> so the framed page's buttons still submit. The buster is weak because the attacker chooses the sandbox options, not the target.</p>
+<p><strong>X-Frame-Options (XFO).</strong> A response header, set in PHP with <code>header("X-Frame-Options: DENY")</code>:</p>
+<ul>
+<li><code>DENY</code>: no page may frame this one.</li>
+<li><code>SAMEORIGIN</code>: only pages from the same origin may.</li>
+<li>The slides call it the first fix, now outdated.</li>
+</ul>
+<p>Results from the slides' demo (pages on <code>www.bank32.com</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Framed from</th>
+<th>No XFO</th>
+<th><code>DENY</code></th>
+<th><code>SAMEORIGIN</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>www.attacker32.com</code></td>
+<td>shown</td>
+<td>blocked</td>
+<td>blocked</td>
+</tr>
+<tr>
+<td><code>www.bank32.com</code> (same origin)</td>
+<td>shown</td>
+<td>blocked</td>
+<td>shown</td>
+</tr>
+</tbody>
+</table>
+<p>A blocked frame shows Firefox's "Can't Open This Page".</p>
+<p><strong>CSP <code>frame-ancestors</code>:</strong> the modern fix.</p>
+<ul>
+<li>Syntax: <code>Content-Security-Policy: frame-ancestors &lt;source&gt; ... &lt;source&gt;;</code>. Sources can be <code>'none'</code>, <code>'self'</code> or listed origins.</li>
+<li>It covers <code>frame</code>, <code>iframe</code>, <code>object</code>, <code>embed</code> and <code>applet</code>.</li>
+<li>The demo pages are <code>csp-all.php</code>, <code>csp-self.php</code> and <code>csp-url.php</code>.</li>
+<li>It can be set per page in PHP, or for a whole site in Apache:</li>
+</ul>
+<pre><code>&lt;VirtualHost *:80&gt;
+    ServerName www.bank32.com
+    DocumentRoot &quot;/var/www/bank32&quot;
+    Header set Content-Security-Policy &quot;frame-ancestors 'self'&quot;
+&lt;/VirtualHost&gt;
+</code></pre>
+<p>In browsers that support both headers, <code>frame-ancestors</code> takes priority over XFO. Neither works from a <code>&lt;meta&gt;</code> tag; each must be a real HTTP header.</p>
+<p>Other CSP directives in the slides: <code>script-src</code> and <code>img-src</code>.</p>
+<h3>5.6 iframe security features</h3>
+<p><strong>Same-Origin Policy applies between frames.</strong> The slide experiment:</p>
+<pre><code> Parent page P  (www.attacker32.com)          each page holds an element id=&quot;secret&quot;
+   ├── iframe A (www.attacker32.com/iframe1)
+   ├── iframe B (www.attacker32.com/iframe2)
+   └── iframe C (www.bank32.com/iframe1)
+ Access code: child.contentDocument.getElementById(&quot;secret&quot;)
+              parent.document.getElementById(&quot;secret&quot;)
+              siblingframe.contentDocument.getElementById(&quot;secret&quot;)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Who accesses whom</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P, A and B with each other (same origin)</td>
+<td>Allowed</td>
+</tr>
+<tr>
+<td>P, A or B reading C</td>
+<td>Blocked</td>
+</tr>
+<tr>
+<td>C reading P, A or B</td>
+<td>Blocked</td>
+</tr>
+</tbody>
+</table>
+<p>The slides test three directions: parent to child, child to parent, and child to sibling. In class, the discussion slide asks you to predict each result first; the result slide gives the answers, which are the table above.</p>
+<p>Different origins can still embed each other, but they cannot read each other.</p>
+<p><strong>The <code>sandbox</code> attribute</strong>, written <code>&lt;iframe sandbox="&lt;options&gt;" src=...&gt;</code>:</p>
+<ul>
+<li>Options that turn features back on: <code>allow-same-origin</code>, <code>allow-scripts</code>, <code>allow-forms</code>, <code>allow-modals</code> and <code>allow-top-navigation</code>.</li>
+<li>With no options, the frame gets a unique origin, and it has no scripts, no forms, no pop-ups and no top navigation.</li>
+</ul>
+<p><strong>Use case:</strong> show dynamic content from outside, such as user posts, in a sandboxed iframe, so code injected in it cannot harm your page. The lecture builds such content, which includes an alert script, sets <code>iframe.srcdoc = content; iframe.sandbox = "";</code>, and the script does not run. This guards against code injection, as CSP does.</p>
+<p>Do not give an embedded page both <code>allow-scripts</code> and <code>allow-same-origin</code> if it comes from your own origin. Its script can then remove the sandbox.</p>
+<h3>5.7 Common mistakes</h3>
+<ul>
+<li>Clickjacking is <strong>not</strong> CSRF. The user really clicks, so tokens do not help.</li>
+<li>Framebusting is weak. The real fix is a <strong>header</strong> (XFO or CSP <code>frame-ancestors</code>).</li>
+<li><code>frame-ancestors</code> controls who may frame <strong>me</strong>. <code>sandbox</code> controls what <strong>I</strong> allow a frame I embed to do. Do not mix them up.</li>
+<li><code>&lt;meta&gt;</code> tags do not carry XFO or <code>frame-ancestors</code>.</li>
+<li><code>sandbox</code> with <code>allow-scripts</code> still blocks top navigation unless <code>allow-top-navigation</code> is also given.</li>
+</ul>
+<h3>5.8 Quick revision (Clickjacking)</h3>
+<ol>
+<li>A hidden or transparent iframe sits over a bait page.</li>
+<li>Variants: LikeJacking, adding a friend, a click sequence, a small iframe that shows one piece of another page, a fake login.</li>
+<li>Framebusting is unreliable. A sandboxed frame stops it: with no scripts, or with scripts but no top navigation.</li>
+<li>XFO: <code>DENY</code> and <code>SAMEORIGIN</code>. CSP: <code>frame-ancestors</code>, also settable in Apache.</li>
+<li>iframe SOP: frames from different origins cannot read each other.</li>
+<li><code>sandbox</code> options, and the <code>srcdoc</code> example for untrusted content.</li>
+</ol>
+<h3>Practice questions: Clickjacking</h3>
+<p><strong>5.1</strong> Why can a page with a JavaScript framebuster still be framed?<br />
+<strong>Answer:</strong> The attacker frames it with <code>sandbox</code> and without <code>allow-top-navigation</code>, so the buster cannot move the top window.</p>
+<p><strong>5.2</strong> A site wants only itself and <code>https://partner.com</code> to frame its pages. What should it send?<br />
+<strong>Answer:</strong> The HTTP header <code>Content-Security-Policy: frame-ancestors 'self' https://partner.com</code>. Modern browsers ignore <code>ALLOW-FROM</code>, <code>SAMEORIGIN</code> cannot name a partner, and <code>frame-ancestors</code> is ignored in a <code>&lt;meta&gt;</code> tag.</p>
+<p><strong>5.3</strong> Does a CSRF token stop clickjacking on an "Add friend" button?<br />
+<strong>Answer:</strong> No. The real page loads in the frame with a valid token, and the victim's own click submits the real form.</p>
+<p><strong>5.4</strong> The attacker frames the target with <code>sandbox="allow-scripts allow-forms"</code>. The target has a framebuster. What happens?<br />
+<strong>Answer:</strong> The buster runs, but the browser blocks the top navigation, so the target stays framed.</p>
+<hr />
+<h2>6. Mixed questions and rapid revision</h2>
+<h3>6.1 Mixed questions</h3>
+<p><strong>M1.</strong> A hidden form on another site posts to a site. Separately, the user clicks a button shown in an invisible frame. Which defences match?<br />
+<strong>Answer:</strong> The first is CSRF: a secret token or SameSite. The second is clickjacking: <code>frame-ancestors</code> or <code>X-Frame-Options</code>. A token does not stop a real click.</p>
+<p><strong>M2.</strong> Why can an XSS bug defeat the site's CSRF token, while the attacker's own site cannot?<br />
+<strong>Answer:</strong> XSS script runs in the site's origin, so SOP lets it read the token from the page.</p>
+<p><strong>M3.</strong> What is the main difference between CSRF and XSS?<br />
+<strong>Answer:</strong> CSRF sends requests from another site and cannot read the replies. XSS runs code inside the target site and can read and act as the user.</p>
+<p><strong>M4.</strong> Can a secret token or a same-site cookie defend against XSS?<br />
+<strong>Answer:</strong> No. The injected script's requests come from the site itself, so they are same-site and can include the token.</p>
+<p><strong>M5.</strong> Match <code>HttpOnly</code>, <code>Secure</code> and <code>SameSite</code> to the threat each one deals with.<br />
+<strong>Answer:</strong> <code>HttpOnly</code>: script reading the cookie. <code>Secure</code>: sending it over plain HTTP. <code>SameSite</code>: sending it on cross-site requests (CSRF).</p>
+<p><strong>M6.</strong> Which attacks share the cause "data and code are mixed"?<br />
+<strong>Answer:</strong> SQL injection, XSS, command injection through <code>system()</code>, and format-string bugs. CSRF and clickjacking do not; they abuse cookies and framing.</p>
+<p><strong>M7.</strong> A page on <code>evil.com</code> fetches <code>bank.com/balance</code> with Ajax and also opens a WebSocket to <code>bank.com</code>. Neither server does anything special. What can its script read?<br />
+<strong>Answer:</strong> Not the Ajax response, because there is no CORS header. WebSocket messages, yes, if the server accepts the connection without checking <code>Origin</code>.</p>
+<h3>6.2 Definitions</h3>
+<ul>
+<li><strong>SOP:</strong> scripts may read only same-origin resources. Origin = scheme + host + port. Requests go out, but responses cannot be read across origins.</li>
+<li><strong>CSRF:</strong> the attacker makes the victim's browser send a request to a site, with the victim's cookie.</li>
+<li><strong>XSS:</strong> the attacker's script runs in the victim's browser, in the site's origin.</li>
+<li><strong>SQLi:</strong> user data changes the meaning of a SQL query.</li>
+<li><strong>Clickjacking:</strong> the victim's click lands on a hidden element from another site.</li>
+<li><strong>CSP:</strong> a header that tells the browser which sources of script, images and frames are allowed.</li>
+<li><strong>Prepared statement:</strong> the statement template is fixed first; values are bound later, through a data channel, and are not parsed as SQL.</li>
+</ul>
+<h3>6.3 Comparison table</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>CSRF</th>
+<th>XSS</th>
+<th>SQLi</th>
+<th>Clickjacking</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What it abuses</td>
+<td>The user's authority</td>
+<td>The user's browser session</td>
+<td>The database</td>
+<td>The user's click</td>
+</tr>
+<tr>
+<td>Needs victim logged in?</td>
+<td>Yes</td>
+<td>Not always</td>
+<td>No</td>
+<td>Usually yes</td>
+</tr>
+<tr>
+<td>Attacker sees response?</td>
+<td>No</td>
+<td>Yes (script runs in-origin)</td>
+<td>Depends on query</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Root cause</td>
+<td>Cookies sent automatically</td>
+<td>Code and data mixed</td>
+<td>Code and data mixed</td>
+<td>Page can be framed</td>
+</tr>
+<tr>
+<td>Main fix</td>
+<td>Token / SameSite</td>
+<td>Output encoding / CSP</td>
+<td>Prepared statements</td>
+<td><code>frame-ancestors</code> / XFO</td>
+</tr>
+<tr>
+<td>Beaten by</td>
+<td>XSS, leaked or weakly checked token</td>
+<td>Weak or missing encoding</td>
+<td>Identifiers built from input</td>
+<td>A framebuster alone (sandbox beats it)</td>
+</tr>
+</tbody>
+</table>
+<h3>6.4 Attack sequences</h3>
+<ul>
+<li><strong>CSRF:</strong> log in, visit the attacker's page, the browser sends a request with the cookie, the action is done.</li>
+<li><strong>Stored XSS:</strong> the attacker saves input, the victim loads the page, the script runs in the site's origin, then data is stolen or a request is forged.</li>
+<li><strong>XSS worm:</strong> view an infected page, the script forges a profile edit, it copies itself into the victim's profile, it spreads.</li>
+<li><strong>SQLi login:</strong> a quote ends the string, a comment cuts the rest, login without the password.</li>
+<li><strong>Clickjacking:</strong> the victim opens the attacker's page, a transparent frame sits on top, the real click hits the target button.</li>
+</ul>
+<h3>6.5 Defence map</h3>
+<table>
+<thead>
+<tr>
+<th>Defence</th>
+<th>Stops</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Secret token</td>
+<td>CSRF (not XSS)</td>
+</tr>
+<tr>
+<td>SameSite cookie</td>
+<td>Most cross-site cookie sending</td>
+</tr>
+<tr>
+<td>Referer check</td>
+<td>Weak CSRF defence</td>
+</tr>
+<tr>
+<td>Output encoding</td>
+<td>Stored and reflected XSS</td>
+</tr>
+<tr>
+<td>Safe DOM sinks (<code>textContent</code>)</td>
+<td>DOM-based XSS</td>
+</tr>
+<tr>
+<td>HTMLawed / jsoup filtering</td>
+<td>Some XSS (fragile)</td>
+</tr>
+<tr>
+<td>CSP <code>script-src</code> (origin, nonce, hash)</td>
+<td>XSS</td>
+</tr>
+<tr>
+<td>CSP <code>frame-ancestors</code>, XFO</td>
+<td>Clickjacking</td>
+</tr>
+<tr>
+<td><code>sandbox</code> iframe</td>
+<td>Untrusted embedded content</td>
+</tr>
+<tr>
+<td>Prepared statement</td>
+<td>SQLi through values</td>
+</tr>
+<tr>
+<td><code>real_escape_string</code></td>
+<td>Some SQLi (weaker)</td>
+</tr>
+<tr>
+<td><code>Origin</code> check on WebSocket handshake</td>
+<td>Cross-site WebSocket use</td>
+</tr>
+</tbody>
+</table>
+<h3>6.6 Common mistakes</h3>
+<ol>
+<li><code>HttpOnly</code>, <code>Secure</code> and <code>SameSite</code> deal with different threats. None replaces the others.</li>
+<li>SOP blocks reading responses, not sending requests.</li>
+<li>Browsers allow cross-origin WebSocket connections and do not restrict their data. The server must check <code>Origin</code>.</li>
+<li>A CSRF token is kept secret by SOP. XSS, leakage and weak or unbound checks can still beat it.</li>
+<li>Framebusting is weak. Headers are the real fix, and <code>&lt;meta&gt;</code> does not carry them.</li>
+<li><code>query()</code> runs one statement; <code>multi_query()</code> runs many.</li>
+<li>In MySQL, <code>--</code> needs a space after it.</li>
+<li>Prepared statements do not cover identifiers.</li>
+<li>The Elgg token is called an MD5 digest in the slides and is an HMAC with MD5 in the lab code.</li>
+<li>The labs turn off Elgg's countermeasures (CSRF token, HTMLawed, <code>htmlspecialchars</code>) on purpose.</li>
+<li>Same-site is not the same as same-origin.</li>
+<li>A sandboxed frame can run scripts (<code>allow-scripts</code>) and still be unable to move the top window.</li>
+</ol>
+<hr />
+<h2>7. Burp Suite: a tool for testing web apps</h2>
+<p>Burp Suite, made by PortSwigger, is a set of tools for testing the security of web applications. It sits between the browser and the server, so every request and response from sections 1 to 5 can be seen, paused and changed. Use it only on apps you own, on practice labs, or where you have written permission to test.</p>
+<h3>7.1 Editions</h3>
+<table>
+<thead>
+<tr>
+<th>Edition</th>
+<th>Cost</th>
+<th>Notable tools</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Community</td>
+<td>Free</td>
+<td>Proxy, Repeater, Intruder (rate-limited), Decoder, Comparer, Sequencer, Burp's browser</td>
+</tr>
+<tr>
+<td>Professional</td>
+<td>Paid, free trial</td>
+<td>Everything in Community, plus Scanner, Collaborator, engagement tools and reports</td>
+</tr>
+</tbody>
+</table>
+<h3>7.2 How the proxy works</h3>
+<pre><code> [Burp's browser] ---request---&gt; [Burp Proxy] ---request---&gt; [Web server]
+                  &lt;--response---  listener      &lt;--response--
+                                  127.0.0.1:8080 (default)
+                                  Intercept on: hold each message
+                                  HTTP history: log every message
+</code></pre>
+<ul>
+<li><strong>Burp's browser</strong> (Proxy &gt; Intercept &gt; <strong>Open browser</strong>) is a Chromium build that is already set up to use the proxy. Nothing needs configuring.</li>
+<li><strong>Another browser</strong> must be pointed at the listener (<code>127.0.0.1:8080</code> by default). For HTTPS sites it must also trust Burp's CA certificate, which you download from <code>http://burpsuite</code> while the proxy is on. Without that, the browser shows certificate errors, because Burp decrypts and re-encrypts the traffic.</li>
+<li><strong>Intercept on:</strong> each request stops in Burp. You can read it, edit it, then click <strong>Forward</strong> (send it) or <strong>Drop</strong> (discard it).</li>
+<li><strong>Intercept off:</strong> traffic flows freely, but is still logged in <strong>Proxy &gt; HTTP history</strong>.</li>
+</ul>
+<h3>7.3 Main tools</h3>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>What it does</th>
+<th>Where it helps in this guide</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Proxy</strong></td>
+<td>Captures and edits traffic between browser and server</td>
+<td>See cookies, <code>Set-Cookie</code> flags, <code>Origin</code>, <code>Referer</code> (1.1 to 1.5)</td>
+</tr>
+<tr>
+<td><strong>Target &gt; Site map</strong></td>
+<td>Tree of every page and request seen so far</td>
+<td>Map the app before testing</td>
+</tr>
+<tr>
+<td><strong>Repeater</strong></td>
+<td>Edit one request by hand and resend it as often as you like</td>
+<td>Check if a request still works with no CSRF token, or with the <code>Origin</code> changed (2.5)</td>
+</tr>
+<tr>
+<td><strong>Intruder</strong></td>
+<td>Sends many versions of one request, changing marked positions from a list</td>
+<td>Test many inputs against one field; guess IDs</td>
+</tr>
+<tr>
+<td><strong>Decoder</strong></td>
+<td>Encodes and decodes URL, HTML, Base64 and hex</td>
+<td>Read URL-encoded bodies and encoded output (3.6, 4.3)</td>
+</tr>
+<tr>
+<td><strong>Comparer</strong></td>
+<td>Shows the difference between two requests or responses</td>
+<td>Compare a normal response with a changed one</td>
+</tr>
+<tr>
+<td><strong>Sequencer</strong></td>
+<td>Measures how random session IDs or tokens are</td>
+<td>Check that a CSRF token or session ID is not predictable (2.5)</td>
+</tr>
+<tr>
+<td><strong>Scanner</strong> (Pro)</td>
+<td>Crawls the app and checks it for known flaws</td>
+<td>Automated check for XSS, SQLi and more</td>
+</tr>
+<tr>
+<td><strong>DOM Invader</strong></td>
+<td>Extension in Burp's browser that traces input into DOM sinks</td>
+<td>Find DOM-based XSS (3.2)</td>
+</tr>
+<tr>
+<td><strong>Clickbandit</strong></td>
+<td>Builds a framed test page for a chosen click</td>
+<td>Check if a page can be framed (5.5)</td>
+</tr>
+<tr>
+<td><strong>Collaborator</strong> (Pro)</td>
+<td>A server that records outside lookups an app makes</td>
+<td>Find flaws that only show up out-of-band</td>
+</tr>
+</tbody>
+</table>
+<h3>7.4 A first session</h3>
+<ol>
+<li>Install Burp and start a temporary project with default settings (<strong>Next</strong>, then <strong>Start Burp</strong>).</li>
+<li>Go to <strong>Proxy &gt; Intercept</strong> and click <strong>Open browser</strong>.</li>
+<li>Browse the test site with intercept off, so HTTP history fills up.</li>
+<li>Set the scope: in <strong>Target &gt; Site map</strong>, right-click the host and choose <strong>Add to scope</strong>. Click <strong>Yes</strong> to stop logging out-of-scope traffic. In HTTP history, filter to <strong>Show only in-scope items</strong>. This hides traffic to other sites such as analytics and video embeds.</li>
+<li>Find a request of interest in HTTP history. Right-click and choose <strong>Send to Repeater</strong>.</li>
+<li>In Repeater, change one thing at a time, click <strong>Send</strong>, and read the response. The arrows step back through earlier attempts.</li>
+<li>Turn intercept on only when you need to change a request before it reaches the server.</li>
+</ol>
+<h3>7.5 What to look for, per topic</h3>
+<ul>
+<li><strong>Cookies (1.3):</strong> does the login response's <code>Set-Cookie</code> carry <code>HttpOnly</code>, <code>Secure</code> and <code>SameSite</code>?</li>
+<li><strong>CORS (1.4):</strong> does the server reflect any <code>Origin</code> back in <code>Access-Control-Allow-Origin</code>, together with <code>Access-Control-Allow-Credentials: true</code>?</li>
+<li><strong>WebSocket (1.5):</strong> the handshake and messages appear under <strong>Proxy &gt; WebSockets history</strong>. Does the server reject a changed <code>Origin</code>?</li>
+<li><strong>CSRF (2):</strong> send a state-changing request to Repeater, remove the token or change its value. A safe server answers with an error such as <code>403</code>.</li>
+<li><strong>XSS (3):</strong> send a harmless marker such as <code>&lt;b&gt;test123&lt;/b&gt;</code> and search the response. If it comes back as <code>&amp;lt;b&amp;gt;test123&amp;lt;/b&amp;gt;</code>, output is encoded.</li>
+<li><strong>SQLi (4):</strong> a single quote that causes a database error in the response shows input reaches the query unsafely.</li>
+<li><strong>Clickjacking (5):</strong> does the page's response carry <code>X-Frame-Options</code> or <code>Content-Security-Policy: frame-ancestors</code>?</li>
+</ul>
+<h3>7.6 Quick revision</h3>
+<ol>
+<li>Burp is a proxy between browser and server. Default listener <code>127.0.0.1:8080</code>.</li>
+<li>Burp's browser works with no setup. Other browsers need the proxy setting and Burp's CA certificate for HTTPS.</li>
+<li>Proxy captures, Repeater resends one request by hand, Intruder sends many, Decoder converts encodings, Comparer diffs, Sequencer tests randomness.</li>
+<li>Scanner and Collaborator are Professional only.</li>
+<li>Set the target scope first, so the history shows only the site under test.</li>
+<li>Test only what you are allowed to test.</li>
+</ol>
+<h3>Practice questions: Burp Suite</h3>
+<p><strong>7.1</strong> Firefox uses Burp's proxy. HTTP pages work, but every HTTPS page shows a certificate warning. What is the fix?<br />
+<strong>Answer:</strong> Install and trust Burp's CA certificate in Firefox. Burp decrypts HTTPS and re-encrypts it with its own certificate.</p>
+<p><strong>7.2</strong> Which tool checks whether a profile-edit request still works with its CSRF token removed?<br />
+<strong>Answer:</strong> Repeater. It lets you edit one request by hand, resend it and read the response.</p>
+<p><strong>7.3</strong> Which tool tells you whether session IDs are random enough?<br />
+<strong>Answer:</strong> Sequencer. It collects many tokens and measures how random they are.</p>
+<p><strong>7.4</strong> HTTP history is full of requests to analytics and video sites. How do you show only the app under test?<br />
+<strong>Answer:</strong> Add the app's host to the target scope, then filter HTTP history to "Show only in-scope items".</p>
+<p><strong>7.5</strong> Name a tool that is only in the Professional edition.<br />
+<strong>Answer:</strong> Scanner (Collaborator too). Proxy, Repeater and Decoder are in both editions.</p>
+<p>Further reading: PortSwigger's guide at https://portswigger.net/burp/documentation/desktop/getting-started, and the free Web Security Academy labs.</p></body></html>

@@ -1,0 +1,105 @@
+=== Slide 1 ===
+Web Security Basics
+
+=== Slide 2 ===
+Outline The web architecture Web server HTTP protocol, cookies JavaScript and sandboxing
+
+=== Slide 3 ===
+The Web Architecture
+
+=== Slide 4 ===
+HTML  Hypertext Markup Language For creating web pages Example
+
+=== Slide 5 ===
+CSS: Cascading Style Sheets Specify the presentation style Separate content from the presentation style Example
+
+=== Slide 6 ===
+Dynamic Content Adobe Flash Microsoft Silverlight ActiveX Java applets JavaScript
+
+=== Slide 7 ===
+JavaScript Also known as ECMAScript Scripting language for web pages Different ways to include JavaScript code
+
+=== Slide 8 ===
+Web Server
+
+=== Slide 9 ===
+HTTP Server & Web Application Server
+
+=== Slide 10 ===
+Case Study: Apache Server Configuration: Virtual Hosting
+
+=== Slide 11 ===
+How HTTP Server Interacts with Web Applications CGI: The Common Gateway Interface Starts the CGI program in a new process FastCGI : a variation of the CGI, faster Modules: directly execute script-based programs 
+
+=== Slide 12 ===
+PHP Example Inline Approach Template Approach
+
+=== Slide 13 ===
+HTTP Protocol
+
+=== Slide 14 ===
+HTTP: Interacting with Server (1) An example of HTTP request
+
+=== Slide 15 ===
+HTTP: Interacting with Server (2) An example of HTTP response HTTP 404 (not found) A Joke: I had trouble finding my new classroom. Room 404, classroom not found
+
+=== Slide 16 ===
+GET versus POST Requests Main difference how they send data to the server GET request Post request
+
+=== Slide 17 ===
+Cookies Web server is stateless does not maintain a long-term connection with the client HTTP Cookies: used to save information on the client side Browser save cookies Attach cookies in every request
+
+=== Slide 18 ===
+Setting Cookies Server: setting cookies HTTP response
+
+=== Slide 19 ===
+Attaching Cookies Browser: attach all the cookies belonging to the target server
+
+=== Slide 20 ===
+Tracking Using Cookies
+
+=== Slide 21 ===
+Prevent Tracking Using anonymous mode in browsing Block third-party cookies First-party cookies are essential for browsing Third-part cookies are mainly used for advertisement, information collection, etc. 
+
+=== Slide 22 ===
+Session Cookies A cookie: store session ID The session ID identifies a session Session data are typically maintained on the server Session is typically created after user login Have the session ID = have the access Security sensitive ID: Random number
+
+=== Slide 23 ===
+JavaScript and sandbox
+
+=== Slide 24 ===
+Protection Needs
+
+=== Slide 25 ===
+ Access Page Data and DOM
+
+=== Slide 26 ===
+Access File System JavaScript cannot directly access local file system User needs to grant permission via file selection File selection:  grant permissions by selection Get the file handlers
+
+=== Slide 27 ===
+Access Network and Ajax Three communication mechanisms Normal HTTP Ajax WebSocket Security policies are different
+
+=== Slide 28 ===
+Ajax Example Asynchronous JavaScript and XML (Ajax) Slowly being superseded by the Fetch API Ajax example
+
+=== Slide 29 ===
+Same Origin Policy on Ajax Page from  www.bank32.com  trying to access  www.bank99.com  (using Ajax)
+
+=== Slide 30 ===
+What is Blocked: Request or Response? Request was sent out, response came back Browser blocks Ajax code from accessing the response
+
+=== Slide 31 ===
+Why Blocking the Response? Cross-Origin access compromise privacy Same-origin policy is enforced Example: Ajax code in Facebook page  allowed to access the user’s Facebook data not allowed to access the user’s Google data
+
+=== Slide 32 ===
+Relaxing the Restriction The same-origin policy is too restrictive CORS (Cross-Origin Resource Sharing) Whitelist provided by server: grant permissions CORS policy on  www.bank99.com  
+
+=== Slide 33 ===
+WebSocket Ajax uses HTTP: half-duplex Browser sends request, server responds No “push” mechanism (from server) WebSocket is full-duplex Both browser/server can send data (without request)
+
+=== Slide 34 ===
+Security Policy on WebSocket Browser does not restrict data from WebSocket Different from Ajax Access control on client side Access control is conducted on server side Check the “Origin” of the request
+
+=== Slide 35 ===
+Cable Haunt Attack Discovered: January 2020 Affected many Broadcom-based cable modems These modems run a WebSocket-based server program JavaScript code can interact with the server: a door is open Attacker exploits a buffer overflow vulnerability on the server
+

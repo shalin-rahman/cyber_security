@@ -11,5 +11,8 @@
 
 FROM handsonsecurity/seed-server:apache-php
 
+# Remove base image default index.html so index.php takes priority
+RUN rm -f /var/www/html/index.html
+
 # Copy local PHP application source code into the web server document root
 COPY src /var/www/html

@@ -12,7 +12,7 @@ services:
   elgg:
     build: ./image_www
     image: seed-image-www-xss-elgg
-    container_name: elgg-10.9.0.5
+    container_name: elgg-10.9.0.5-xss
     tty: true
     restart: unless-stopped
     depends_on:
@@ -23,7 +23,10 @@ services:
     ports:
       - "10081:80"
     environment:
-      - MYSQL_HOST=10.21.0.6
+      - MYSQL_HOST=mysql
+    extra_hosts:
+      - "mysql:10.21.0.6"
+      - "www.seed-server.com:10.21.0.5"
 
 # Service: MySQL backend for the XSS lab
   mysql:
@@ -35,8 +38,11 @@ services:
       net-10.21.0.0:
         ipv4_address: 10.21.0.6
     environment:
-      - MYSQL_ROOT_PASSWORD=seedubuntu
-    command: --default-authentication-plugin=mysql_native_password
+      - MYSQL_ROOT_PASSWORD=dees
+      - MYSQL_USER=seed
+      - MYSQL_PASSWORD=dees
+      - MYSQL_DATABASE=elgg_seed
+    command: --default-authentication-plugin=mysql_native_password --skip-name-resolve
 
 # Network block – custom Docker network with its own subnet to prevent address collisions across labs
 networks:

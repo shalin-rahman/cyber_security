@@ -1,6 +1,6 @@
 <?php
 session_start();
-$conn = new mysqli(getenv('MYSQL_HOST') ?: '10.9.0.6', 'root', 'dees', 'sqllab_users');
+$conn = new mysqli(getenv('MYSQL_HOST') ?: 'mysql', 'root', 'dees', 'sqllab_users');
 if ($conn->connect_error) {
     die("Database Connection Failed: " . $conn->connect_error);
 }

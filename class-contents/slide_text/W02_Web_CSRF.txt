@@ -1,0 +1,78 @@
+=== Slide 1 ===
+Cross Site Request  Forgery (CSRF)
+
+=== Slide 2 ===
+Outline Cross-Site Requests and Its Problems Cross-Site Request Forgery Attack CSRF Attacks on HTTP GET CSRF Attacks on HTTP POST Countermeasures
+
+=== Slide 3 ===
+Cross-Site Requests and Its Problems When a page from a website sends an HTTP request back to the website, it is called same-site request. If a request is sent to a different website, it is called cross-site request because the where the page comes from and where the request goes are different. Eg  : A webpage (not Facebook) can include a Facebook link, so when users click on the link , HTTP  request is sent to Facebook.
+
+=== Slide 4 ===
+Cross-Site Requests and Its Problems When a request is sent to example.com from a page coming from example.com, the browser attaches all the cookies belonging to example.com. Now, when a request is sent to example.com from another  site ( different from example.com), the browser will attach the cookies too. Because of above  behaviour of the browsers, the server cannot distinguish between the same-site and cross-site  requests I t  is possible for  third-party  websites to forge requests that are exactly the same as the same-site requests. This is called  Cross-Site Request  Forgery  (CSRF ).
+
+=== Slide 5 ===
+Cross-Site Request Forgery Attack Environment Setup: Target website Victim user who has an active session on the target website Malicious website controlled  Steps: The  attacker crafts a webpage that can forge a cross-site request to be sent to the targeted website. The attacker needs to attract the victim user to visit the malicious website . The victim is logged into the targeted website .
+
+=== Slide 6 ===
+Environment Setup Elgg : open-source  web application for social  networking C ountermeasures  for  CSRF is disabled by us in the VM Target website:  http://www.csrflabelgg.com Attacker’s website:  http://www.csrflabattacker.com These websites are hosted on  localhost  via Apache’s Virtual Hosting
+
+=== Slide 7 ===
+CSRF Attacks on HTTP Get Services HTTP GET requests: data ( foo and bar ) are attached  in the URL. HTTP POST requests: data  (foo and bar)  are placed inside  the data field of the HTTP request.
+
+=== Slide 8 ===
+CSRF Attack  on GET Requests -  Basic Idea Consider an online banking web application  www.bank32.com  which allows users to transfer money from their accounts to other people’s accounts. An user is logged in into the web application and has a session cookie which uniquely identifies the authenticated user. HTTP request to transfer $500 from his/her account to account 3220: http://www.bank32.com/transfer.php?to=3220&amount=500 In order to perform the attack, the attacker needs to send out the forged request from the victim’s machine so that the browsers will attach the victim’s session cookies with the requests.
+
+=== Slide 9 ===
+CSRF  Attack on GET Requests  - Basic Idea The attacker can place the piece of code (to trigger request) in the form of  Javascript  code in the attacker’s web  page. HTML  tags like  img  and  iframe  can trigger GET requests to the URL specified in  src  attribute. Response for this request will be an image/webpage. 
+
+=== Slide 10 ===
+Attack on Elgg’s Add-Friend Service Goal :  Add  yourself  to the victim’s friend list without his/her consent. Investigation  taken by the attacker Samy : Creates an  Elgg  account using Charlie as the name. In Charlie’s account, he clicks add-friend button to add himself to Charlie’s friend list. Using  FireFox  LiveHTTPHeaders extension to capture the add-friend HTTP request. 
+
+=== Slide 11 ===
+Captured HTTP Header Line  ①   :  URL of  Elgg’s  add-friend request.  UserID  of the user to be added to the friend list is used. Here,  Samy’s   UserID  (GUID) is 42. Line  ②   :   Elgg’s  countermeasure against CSRF attacks which are disabled . Line  ③   :  Session cookie which is unique for each user. It is automatically sent by browsers.
+
+=== Slide 12 ===
+Create the malicious web page The  attacker use add-friend URL along with friend    parameter. The size of the image is very small so that the victim is not suspicious . 3.  The  crafted web page is placed in the malicious website  www.csrflabattacker.com  (inside  the  / var /www/CSRF/Attacker  folder). The  i mg   tag will trigger an HTTP GET request . When  browsers render a web page and sees an  img  tag, it sends an HTTP GET request to the URL specified in  the  src   attribute.
+
+=== Slide 13 ===
+Attract Victim to Visit Your Malicious Page Samy  can send a private message to Alice with the link to the malicious web page. If  Alice clicks the link,  Samy’s  malicious web page will be loaded into Alice’s browser and a forged add-friend request will be sent to the  Elgg  server. On  success, Samy will be added to Alice’s friend list.
+
+=== Slide 14 ===
+CSRF Attacks on HTTP POST Services Constructing a POST Request Using JavaScript POST requests can be generated using HTML forms. The above form has two text fields and a  Submit   button. When the user clicks on the  Submit   button , POST request will be sent out to the URL  specified in  the action field with  to   and  amount   fields included in the body. Attacker’s job is to  click on the button without the help from the user.
+
+=== Slide 15 ===
+CSRF Attacks on HTTP POST Services Line  ① :  Creates a form  dynamically; request  type is set to “POST” Line  ② :   The fields in the form are “hidden ”. Hence , after the form is constructed, it is added to the current web page. Line  ③ :   Submits the  form automatically. Line  ④ :  The  JavaScript  function “ forge_post ()” will be invoked automatically once the page is loaded.
+
+=== Slide 16 ===
+Attack on Elgg’s Edit-Profile Service Goal :      Putting  a statement “SAMY is MY HERO”  in the victim’s profile without the consent from the victim. Investigation by the attacker Samy Samy captured an edit-profile request using LiveHTTPHeader extension . 
+
+=== Slide 17 ===
+Attack on Elgg’s Edit-Profile Service Line  ①   :  URL of the edit-profile service. Line  ② :  Session  cookie (unique  for each  user).  It is automatically set by browsers. Line  ③ :   CSRF  countermeasures,  which are disabled   
+
+=== Slide 18 ===
+Attack on Elgg’s Edit-Profile Service Line  ④ :   Description field  with text  “SAMY is MY HERO ” Line  ⑤ :   Access level of each field : 2  means viewable by everyone Line  ⑥ :  User Id (GUID) of the victim. This can be obtained by visiting victim’s profile page  source, looking for the following:         Elgg.page_owner ={“ guid”:39,”type”:”user ”,...}
+
+=== Slide 19 ===
+Craft the  Malicious Web Page The JavaScript function creates a hidden form with the description entry as our text. When the victim visits this page, the form will be automatically submitted (POST request) from the victim’s browser to the edit-profile service at “ http://www.csrflabelgg.com/action/profile/edit ” causing the message to be added to the victim’s profile.
+
+=== Slide 20 ===
+Fundamental Causes of CSRF The server cannot distinguish whether a request is cross-site or same-site Same-site request: coming from the server’s own page.  Trusted . Cross-site request: coming from other site’s pages.  Not Trusted . We cannot treat these two types of requests the same. Does the browser know the difference? Of course. The browser knows from which page a request is generated. Can browser help? How to help server? Referer  header  (browser’s help) Same-site cookie (browser’s help) Secret token (the server helps itself to defend against CSRF)
+
+=== Slide 21 ===
+Countermeasures:  Referer  Header HTTP  header field identifying the address of the web page from where the request is generated. A server can check whether the request is originated from its own pages or not. This field reveals part of browsing history causing privacy concern and hence, this field is mostly removed from the header . The server cannot use this unreliable source.
+
+=== Slide 22 ===
+Countermeasures: Same-Site  Cookies A  special type of cookie in browsers like Chrome and  Opera,  which  provide  a special attribute to cookies called  SameSite . This attribute is set by the servers and it tells the browsers whether a cookie should be attached to a cross-site request or not. Cookies with this attribute are always sent along with same-site requests, but whether they are sent along with cross-site depends on the value of this attribute. Values Strict  (Not sent along with cross-site  requests) Lax  (Sent with cross-site requests) 
+
+=== Slide 23 ===
+Countermeasures: Secret Token The server embeds  a random secret value inside each web page.  When  a request is initiated from this page, the secret value is included with the request.  The server checks this value to see whether a request is cross-site or not. Pages from a different origin will not be able to access the secret value . This is guaranteed by browsers (the same origin policy) The secret is randomly generated and is different for different users. So, there is no way for attackers to guess or find out this secret.
+
+=== Slide 24 ===
+Elgg’s Countermeasure Uses secret-token approach : _ elgg_tc  and _ elgg_token . The values are stored inside two JavaScript variables and also in all the forms where user action is required. The two hidden parameters are added to the form so that when the form is submitted via an HTTP request, these two values are included in the request. These two hidden values are generated by the server  and  added as a hidden field in each page.
+
+=== Slide 25 ===
+Elgg’s Countermeasure JavaScript variables to access using JavaScript code. Elgg’s  security token is a MD5 digest of four pieces of information :  Site secret value Timestamp User session ID  Randomly  generated session string
+
+=== Slide 26 ===
+Summary Cross-site requests  v.s . same-site requests.  Why cross-site requests should be treated differently. How to conduct CSRF attack The fundamental cause of the CSRF vulnerability How to defend against CSRF attack
+

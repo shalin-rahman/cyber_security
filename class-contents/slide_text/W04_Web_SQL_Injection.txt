@@ -1,0 +1,84 @@
+=== Slide 1 ===
+SQL Injection Attack
+
+=== Slide 2 ===
+Brief Tutorial of  SQL Log in to  MySQL:  We  will use MySQL database, which is an open-source relational database management system. We can log in using the following command: Create a  Database : Inside  MySQL, we can create multiple databases. “SHOW DATABSES” command can be used to list existing databases. We will create a new database called  dbtest :
+
+=== Slide 3 ===
+SQL Tutorial: Create a Table A  relational database organizes its data using tables. Let us create a table called employee with seven attributes (i.e. columns) for the database “ dbtest ”  We need to let the system know       which database to use as there       may be multiple databases After a table is created, we can use      describe to display the structure      of the  table
+
+=== Slide 4 ===
+SQL  Tutorial: Insert a Row We  can use the INSERT INTO statement to insert a new record into a table : Here, we insert a record into the “employee”  table. We do not specify a value of the ID column, as it will be automatically set by the  database .
+
+=== Slide 5 ===
+SQL  Tutorial: SELECT Statement The  SELECT statement is the most common operation on databases It retrieves information from a database Asks the database for all its records, including all the columns Asks the database only for Name, EID and Salary columns
+
+=== Slide 6 ===
+SQL  Tutorial: WHERE Clause It  is uncommon for a SQL query to retrieve all records in a  database. WHERE clause is used to set conditions for several types of SQL statements including SELECT, UPDATE, DELETE  etc. The above SQL statement only reflects the rows for which the predicate in the WHERE clause is  TRUE. The predicate is a logical expression; multiple predicates can be combined using keywords AND  and   OR. Lets look at an example in the next  slide.
+
+=== Slide 7 ===
+SQL Tutorial: WHERE Clause The  first query returns a record that has EID5001 in EID field The second query returns the records  that  satisfy either EID=‘EID5001’ or Name=‘David’
+
+=== Slide 8 ===
+SQL Tutorial: WHERE Clause If  the condition is always True, then all the rows are affected by the SQL statement This 1=1 predicate looks quite useless in real queries, but it will become useful in  SQL  Injection attacks
+
+=== Slide 9 ===
+SQL Tutorial: UPDATE Statement We  can use the UPDATE Statement to modify an existing record
+
+=== Slide 10 ===
+SQL Tutorial:  Comments MySQL  supports three comment styles Text from the # character to the end of line is treated as a comment Text from the “--” to the end of line is treated as a comment.  Similar to C language, text between /* and */ is treated as a comment
+
+=== Slide 11 ===
+Interacting with Database in Web Application A typical web application consists of three major components: SQL  Injection attacks can cause damage to the database. As we notice in the figure, the users do not directly interact with the database but through a web server. If this channel is not implemented properly, malicious users can attack the database.
+
+=== Slide 12 ===
+Getting Data from User This  example shows a form where users can type their data. Once the submit button is clicked, an HTTP request will be sent out with the data attached The HTML source of the above form is given below:  Request generated is :
+
+=== Slide 13 ===
+Getting Data from User The  request shown is an HTTP GET request, because the method field in the HTML code specified the get type In GET requests, parameters are attached after the question mark in the URL Each parameter has a name=value pair and are separated by “&” In the case of HTTPS, the format would be similar but the data will be encrypted Once this request reached the target PHP script the parameters inside the HTTP request will be saved to an array $_GET or $_POST. The following example shows a PHP script getting data from a GET request
+
+=== Slide 14 ===
+How Web Applications Interact  with  Database Connecting to MySQL Database PHP  program connects to the database server before conducting query on database using.  The code shown below uses new  mysqli (…) along with its 4 arguments to create the database connection.
+
+=== Slide 15 ===
+How Web Applications Interact with Database Construct  the query string  and  then  send it to  the database for execution. The channel between user and database creates a new attack surface for the database.
+
+=== Slide 16 ===
+Launching SQL Injection Attacks Everything provided by user will become part of the SQL statement. Is it possible for a user to change the meaning of the SQL statement ? The intention of the web app developer by the following is for the user to provide some data for the blank areas. Assume that a user inputs a random string in the password entry and types “EID5002’#” in the  eid  entry. The SQL statement will become the following 
+
+=== Slide 17 ===
+Launching SQL Injection Attacks Everything from the # sign to the end of line is considered as comment. The SQL statement will be equivalent to the following : The  above statement will return the name, salary and SSN of the employee whose EID is EID5002 even though the user doesn’t know the employee’s password. This is security breach . Let’s see if a user can get all the records from the database assuming that we don’t know all the EID’s in the database . We need to create a predicate for WHERE clause so that it is  true  for all records. 
+
+=== Slide 18 ===
+Launching SQL Injection  Attacks using  cURL More convenient to use a command-line tool to launch attacks. Easier to automate attacks without a graphic user interface. Using  cURL , we can send out a form from a command-line, instead of from a web page . The above command will not work. In an HTTP request, special characters are in the attached data needs to be encoded or they maybe  mis -interpreted.  In the above URL we need to encode the apostrophe, whitespace and the # sign and the resulting  cURL  command is as shown below:
+
+=== Slide 19 ===
+Modify Database If the statement is UPDATE or INSERT INTO, we will have chance to change the database. Consider the  form created  for changing passwords. It asks users to fill in three pieces of information, EID, old password and new  password. When Submit button is clicked, an HTTP POST request will be sent to the  server-side  script  changepasswd.php ,  which uses an UPDATE statement to change the user’s password .
+
+=== Slide 20 ===
+Modify Database Let us assume that Alice (EID5000) is not satisfied with the salary she gets. She would like to increase her own salary using the SQL injection vulnerability. She would type her own EID and old  password. The  following will be typed into the “New Password” box : By typing the above string in “New Password” box, we get the UPDATE statement to set one more attribute for us, the salary  attribute. The  SQL statement will now look as  follows. What if Alice doesn’t like Bob and would like to reduce Bob’s salary to 0, but she only knows Bob’s EID (eid5001), not his password. How can she execute the attack?
+
+=== Slide 21 ===
+Multiple SQL Statements Damages that can be caused are bounded because we cannot change everything in the existing SQL statement. It will be more dangerous if we can cause the database to execute an arbitrary SQL statement. To append a new SQL statement “DROP DATABASE  dbtest ” to the existing SQL statement to delete the entire  dbtest  database,  we can  type the following in the EID box The resulting SQL statement is equivalent to the following, where we have successfully appended a new SQL statement to the existing SQL statement string . The above attack doesn’t work against MySQL, because in PHP’s  mysqli  extension, the  mysqli ::query() API doesn’t allow multiple queries to run in the database server .  
+
+=== Slide 22 ===
+Multiple SQL Statements The  code below tries to execute two SQL statements using the $ mysqli ->query() API When we run the code, we get the following error message: If we do want to run multiple SQL statements, we can use $ mysqli  ->  multi_query (). [not recommended]
+
+=== Slide 23 ===
+The Fundamental Cause Mixing data and code  together is the cause of several types of vulnerabilities and attacks including  SQL  Injection  attack,  XSS  attack, attacks  on  the system () function and  format  string  attacks.
+
+=== Slide 24 ===
+Countermeasures: Filtering and Encoding Data Before  mixing user-provided data with code, inspect the  data. Filter  out any character that may be interpreted as code. Special characters are commonly used in SQL Injection attacks. To get rid of them, encode them. Encoding a special character tells parser to treat the encoded character as data and not as code. This can be seen in the following example PHP’s  mysqli  extension has a built-in method called  mysqli :: real_escape_string ().   It  can be used to encode the characters that have special meanings in  SQL.  The following code snippet shows how to use this API.
+
+=== Slide 25 ===
+Countermeasures: Prepared Statement Fundament cause  of SQL injection: mixing data and code Fundament solution : separate data and code.  Main Idea:  S ending  code and data  in separate channels to the database  server. This  way the database server knows not to retrieve any code from the data channel. How:  using  prepared statement Prepared Statement:  It  is an optimized feature that provides improved performance if the same or similar SQL statement needs to be executed  repeatedly. Using  prepared statements, we send an SQL statement template to the database, with certain values called parameters left  unspecified. The  database parses, compiles and performs query optimization on the SQL statement template and stores the result without executing it . We later bind data to the prepared statement
+
+=== Slide 26 ===
+Countermeasures: Prepared Statement The vulnerable version: code  and data are mixed together . Using prepared statements, we separate code and data.  Send code Send data Start  execusion
+
+=== Slide 27 ===
+Why Are Prepared Statements Secure? Trusted  code is sent via a code channel. Untrusted user-provided data is sent via data channel. Database clearly knows the boundary between code and data. Data received from the data channel is not parsed. Attacker can hide code in data, but the code will never be treated as code, so it will never be attacked.
+
+=== Slide 28 ===
+Summary Brief tutorial of SQL SQL Injection attack and how to launch this type of attacks The fundament cause of the vulnerability? How to defend against SQL Injection attacks? Prepared Statement
+

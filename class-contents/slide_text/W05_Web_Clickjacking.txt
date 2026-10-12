@@ -1,0 +1,102 @@
+=== Slide 1 ===
+Clickjacking Attack
+
+=== Slide 2 ===
+Outline Iframe and its properties Clickjacking using iframes Countermeasures (CSP) Iframe's  security features
+
+=== Slide 3 ===
+iframe  and properties
+
+=== Slide 4 ===
+Iframe Examples
+
+=== Slide 5 ===
+Overlapping iframes
+
+=== Slide 6 ===
+Transparent  iframe
+
+=== Slide 7 ===
+Attack Using Transparent  iframe
+
+=== Slide 8 ===
+Attack 1:  LikeJacking  
+
+=== Slide 9 ===
+Attack Page Inside bottom1.html
+
+=== Slide 10 ===
+Attack 2: Adding A Friend 
+
+=== Slide 11 ===
+Attack Code
+
+=== Slide 12 ===
+Attack 3: Sequence of Clicks
+
+=== Slide 13 ===
+Attack Code
+
+=== Slide 14 ===
+Attack Using Small-size  iframe
+
+=== Slide 15 ===
+Attack
+
+=== Slide 16 ===
+Attack Code
+
+=== Slide 17 ===
+Fake Login
+
+=== Slide 18 ===
+Attack Code
+
+=== Slide 19 ===
+countermeasures
+
+=== Slide 20 ===
+Framekiller  and  Framebuster Use JavaScript code to detect  iframe Jump out if detected Not reliable, no longer used
+
+=== Slide 21 ===
+X-Frame-Options Approach Options X-Frame-Options: DENY           X-Frame-Options: SAMEORIGIN Initial solution Now outdated Examples (3 pages)
+
+=== Slide 22 ===
+Results Page content
+
+=== Slide 23 ===
+Content Security Policy (CSP) Allows web applications to define restriction rules script- src : specifies a white-list of script sources img-src : restricts image sources frame-ancestors : specifies the valid parents that may embed a page using <frame>, < iframe >, <object>, <embed>, or <applet>
+
+=== Slide 24 ===
+CSP Examples csp-all.php csp-url.php csp-self.php
+
+=== Slide 25 ===
+Results Page content
+
+=== Slide 26 ===
+Setting the CSP header on Apache CSP header can be set for individual page Set CSP header on all pages
+
+=== Slide 27 ===
+security in  iframe
+
+=== Slide 28 ===
+Iframe’s  Same Origin Policy Three iframes
+
+=== Slide 29 ===
+Access Iframes Parent Accessing Child Child Accessing Parent Child Accessing Siblings
+
+=== Slide 30 ===
+Experiment: Discussion Slide
+
+=== Slide 31 ===
+Experiment: Result Slide
+
+=== Slide 32 ===
+Using Iframe to Sandbox Content Setting sandbox Options allow-same-origin allow-scripts allow-forms allow-modals allow-top-navigation
+
+=== Slide 33 ===
+Sandboxing Dynamic Content Example If the content comes from outside, this mechanism can protect against code injection
+
+=== Slide 34 ===
+Summary Iframe, its attributes and security features	 Clickjacking attacks	 Countermeasures
+

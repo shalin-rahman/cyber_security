@@ -19,8 +19,13 @@ services:
         ipv4_address: 10.22.0.5
     ports:
       - "10082:80"
+      - "80:80"
     environment:
-      - MYSQL_HOST=10.22.0.6
+      - MYSQL_HOST=mysql
+    extra_hosts:
+      - "mysql:10.22.0.6"
+      - "www.seed-server.com:10.22.0.5"
+      - "www.attacker32.com:10.22.0.105"
 
 # Service: attacker container simulating malicious CSRF requests
   attacker:
@@ -34,6 +39,11 @@ services:
         ipv4_address: 10.22.0.105
     ports:
       - "10083:80"
+      - "81:80"
+    extra_hosts:
+      - "mysql:10.22.0.6"
+      - "www.seed-server.com:10.22.0.5"
+      - "www.attacker32.com:10.22.0.105"
 
 # Service: MySQL backend for the CSRF lab
   mysql:
@@ -45,8 +55,11 @@ services:
       net-10.22.0.0:
         ipv4_address: 10.22.0.6
     environment:
-      - MYSQL_ROOT_PASSWORD=seedubuntu
-    command: --default-authentication-plugin=mysql_native_password
+      - MYSQL_ROOT_PASSWORD=dees
+      - MYSQL_USER=seed
+      - MYSQL_PASSWORD=dees
+      - MYSQL_DATABASE=elgg_seed
+    command: --default-authentication-plugin=mysql_native_password --skip-name-resolve
 
 # Network block – custom Docker network with its own subnet to avoid IP collisions across labs
 networks:

